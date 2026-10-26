@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createFamily, loadDemoFamily, signOut } from "@/app/actions";
 import { Logo } from "./Logo";
+import { ThemeButton } from "./ThemeSwitch";
 
 export function Onboarding({ email }: { email: string }) {
   const router = useRouter();
@@ -31,7 +32,10 @@ export function Onboarding({ email }: { email: string }) {
       <header className="top">
         <div className="top-in pad">
           <Logo />
-          <form action={signOut} style={{ marginLeft: "auto" }}>
+          <nav className="menu">
+            <ThemeButton />
+          </nav>
+          <form action={signOut}>
             <button className="btn" style={{ background: "transparent", color: "var(--brand-ink)", borderColor: "var(--brand-muted)" }}>
               Sign out
             </button>

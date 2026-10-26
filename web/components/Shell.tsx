@@ -7,6 +7,7 @@ import { createFamily, createGroup, createPortfolio, signOut } from "@/app/actio
 import { ASSET_CLASSES, PORTFOLIO_TYPES, classInfo, typeLabel } from "@/lib/assetClasses";
 import { initials, quantity, rupees, shortRupees } from "@/lib/format";
 import { Logo } from "./Logo";
+import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
 
 export type ShellTx = {
   portfolio_id: string;
@@ -167,6 +168,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               )}
             </div>
             <button onClick={() => say("Help centre comes later")}>Help</button>
+            <ThemeButton />
             <div className="dd">
               <button className="car" onClick={toggle("user")} aria-expanded={open === "user"}>
                 <span className="avatar">{initials(email)}</span>
@@ -175,6 +177,8 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="panel">
                   <div className="hd mut" style={{ fontSize: 12 }}>{email}</div>
                   <button className="it" onClick={soon("My Account", 1)}>My Account</button>
+                  <ThemeChoice />
+                  <hr />
                   <form action={signOut}>
                     <button className="it">Sign out</button>
                   </form>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { classInfo } from "@/lib/assetClasses";
 import { DEMO_FAMILY_NAME, DEMO_FNO_PORTFOLIO, DEMO_PORTFOLIOS } from "@/lib/demo";
@@ -110,6 +111,20 @@ export async function loadDemoFamily(): Promise<Result> {
 
   revalidatePath("/", "layout");
   redirect(`/family/${fam.id}`);
+}
+
+export type Theme = "system" | "light" | "dark";
+
+// Remembers the theme in a cookie (so the first paint is right) and in preferences (so it follows the account).
+export async function setTheme(theme: Theme): Promise<Result> {
+  if (!["system", "light", "dark"].includes(theme)) return { error: "Unknown theme." };
+  const jar = await cookies();
+  if (theme === "system") jar.delete("theme");
+  else jar.set("theme", theme, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  const supabase = await supabaseServer();
+  const { data: auth } = await supabase.auth.getUser();
+  if (auth.user) await supabase.from("preferences").upsert({ user_id: auth.user.id, theme });
+  return {};
 }
 
 export async function signOut() {
