@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { Shell, type ShellGroup, type ShellTx } from "@/components/Shell";
+import { Shell, type ShellGroup } from "@/components/Shell";
+import type { AssetOption } from "@/components/TxDialog";
+import { todayIST, type TxRow } from "@/lib/holdings";
 import { supabaseServer } from "@/lib/supabase/server";
 
 type Props = {
@@ -14,7 +16,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/sign-in");
 
-  const [{ data: families }, { data: portfolios }, { data: groupRows }] = await Promise.all([
+  const [{ data: families }, { data: portfolios }, { data: groupRows }, { data: assets }] = await Promise.all([
     supabase.from("families").select("id, name").order("created_at"),
     supabase.from("portfolios").select("id, family_id, name, type, book").order("sort").order("created_at"),
     supabase
@@ -23,6 +25,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       .eq("family_id", familyId)
       .order("sort")
       .order("created_at"),
+    supabase.from("assets").select("id, name, asset_class").order("name").limit(5000),
   ]);
   const family = families?.find((f) => f.id === familyId);
   if (!family) notFound();
@@ -39,13 +42,15 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   const selected = group ? group.id : sp.p && inBook.some((p) => p.id === sp.p) ? sp.p : book === "inv" ? "all" : inBook[0]?.id ?? "all";
   const scope = group ? group.members : selected === "all" ? inBook.map((p) => p.id) : [selected];
 
-  let tx: ShellTx[] = [];
+  let rows: TxRow[] = [];
   if (book === "inv" && scope.length) {
     const { data } = await supabase
       .from("transactions")
-      .select("portfolio_id, type, trade_date, quantity, amount_paise, asset:assets(id, name, asset_class)")
-      .in("portfolio_id", scope);
-    tx = (data ?? []) as unknown as ShellTx[];
+      .select("id, portfolio_id, asset_id, type, trade_date, quantity, price_paise, amount_paise, charges_paise, notes, asset:assets(id, name, asset_class, isin, meta)")
+      .in("portfolio_id", scope)
+      .order("trade_date")
+      .limit(50000);
+    rows = (data ?? []) as unknown as TxRow[];
   }
 
   return (
@@ -58,7 +63,9 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       book={book}
       selected={selected}
       tab={sp.tab ?? "ALL"}
-      tx={tx}
+      rows={rows}
+      assets={(assets ?? []) as AssetOption[]}
+      asOf={todayIST()}
     />
   );
 }

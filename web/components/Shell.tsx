@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createFamily, createGroup, createPortfolio, signOut } from "@/app/actions";
 import { ASSET_CLASSES, PORTFOLIO_TYPES, classInfo, typeLabel } from "@/lib/assetClasses";
-import { initials, quantity, rupees, shortRupees } from "@/lib/format";
+import { sumFigures } from "@/lib/calc/figures";
+import { initials, rupees, shortRupees } from "@/lib/format";
+import { buildHoldings, xirrPct, type Holding, type TxRow } from "@/lib/holdings";
+import { AnalyticsCards, AnalyticsModal } from "./Analytics";
+import { HoldingsTable } from "./Holdings";
+import { ImportOpening } from "./ImportOpening";
 import { Logo } from "./Logo";
+import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
 import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
+import { TxDialog, type AssetOption } from "./TxDialog";
+import { TxList } from "./TxList";
 
-export type ShellTx = {
-  portfolio_id: string;
-  type: string;
-  trade_date: string;
-  quantity: number;
-  amount_paise: number;
-  asset: { id: string; name: string; asset_class: string };
-};
 export type ShellGroup = { id: string; name: string; members: string[] }; // id is "g:<uuid>"
 type Family = { id: string; name: string };
 type Portfolio = { id: string; family_id: string; name: string; type: string; book: string };
@@ -30,59 +30,66 @@ type Props = {
   book: "inv" | "fno";
   selected: string;
   tab: string;
-  tx: ShellTx[];
+  rows: TxRow[];
+  assets: AssetOption[];
+  asOf: string;
 };
 
-const INFLOW = new Set(["buy", "deposit", "opening", "bonus", "merge_in"]);
-const OUTFLOW = new Set(["sell", "withdraw", "merge_out"]);
+type Dialog =
+  | { kind: "tx"; edit?: TxRow | null }
+  | { kind: "list" }
+  | { kind: "price"; h: Holding }
+  | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
+  | { kind: "import" }
+  | { kind: "analytics" }
+  | { kind: "addPortfolio" }
+  | null;
 
-// Phase 0 roll-up: quantity and cost by average cost. Phase 1 replaces this with FIFO lots (lib/calc/fifo.ts).
-function rollUp(tx: ShellTx[]) {
-  const m = new Map<string, { id: string; name: string; cls: string; qty: number; cost: number; owners: Set<string> }>();
-  [...tx]
-    .sort((a, b) => a.trade_date.localeCompare(b.trade_date))
-    .forEach((t) => {
-      const h = m.get(t.asset.id) ?? { id: t.asset.id, name: t.asset.name, cls: t.asset.asset_class, qty: 0, cost: 0, owners: new Set<string>() };
-      const q = Number(t.quantity);
-      if (INFLOW.has(t.type)) {
-        h.qty += q;
-        h.cost += Number(t.amount_paise);
-      } else if (OUTFLOW.has(t.type) && h.qty > 0) {
-        h.cost -= (h.cost * Math.min(q, h.qty)) / h.qty;
-        h.qty -= q;
-      }
-      h.owners.add(t.portfolio_id);
-      m.set(t.asset.id, h);
-    });
-  return [...m.values()].filter((h) => h.qty > 1e-9 || h.cost > 0);
-}
+const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
+const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, tx }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, assets, asOf }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [search, setSearch] = useState("");
   const [showType, setShowType] = useState("");
   const [assetQ, setAssetQ] = useState("");
-  const [dlg, setDlg] = useState(false);
+  const [dlg, setDlg] = useState<Dialog>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const famPorts = portfolios.filter((p) => p.family_id === family.id);
+  const invPorts = famPorts.filter((p) => p.book === "inv");
   const bookPorts = famPorts.filter((p) => p.book === book);
   const current = bookPorts.find((p) => p.id === selected);
   const currentGroup = groups.find((g) => g.id === selected);
   const combined = selected === "all" || !!currentGroup;
-  const holdings = useMemo(() => rollUp(tx), [tx]);
+  const viewName = current?.name ?? currentGroup?.name ?? (book === "inv" ? "Family Group" : "—");
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
+
+  const holdings = useMemo(() => buildHoldings(rows, asOf), [rows, asOf]);
+  const total = sumFigures(holdings.map((h) => h.fig));
+  const xirr = useMemo(() => xirrPct(rows, holdings, asOf), [rows, holdings, asOf]);
+  const shown = holdings.filter((h) => (tab === "ALL" || h.cls === tab) && (!assetQ || h.name.toLowerCase().includes(assetQ.toLowerCase())));
+  const unpriced = holdings.filter((h) => h.fig.currentPaise == null).length;
 
   const say = (m: string) => {
     setToast(m);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(""), 2400);
+    toastTimer.current = setTimeout(() => setToast(""), 2600);
   };
   const soon = (what: string, phase: number) => () => {
     setOpen(null);
     say(`${what} arrives in Phase ${phase}`);
+  };
+  const show = (d: Dialog) => {
+    setOpen(null);
+    setDlg(d);
+  };
+  const done = (m: string) => {
+    setDlg(null);
+    say(m);
+    router.refresh();
   };
 
   useEffect(() => {
@@ -114,17 +121,18 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
     setOpen(open === id ? null : id);
   };
 
-  const shown = holdings.filter((h) => (tab === "ALL" || h.cls === tab) && (!assetQ || h.name.toLowerCase().includes(assetQ.toLowerCase())));
-  const invested = holdings.reduce((s, h) => s + h.cost, 0);
-  const shownInvested = shown.reduce((s, h) => s + h.cost, 0);
-  const membersOf = (id: string) =>
-    id === "all" ? bookPorts.map((p) => p.id) : groups.find((g) => g.id === id)?.members ?? [id];
+  // value of one portfolio's share of the loaded holdings (rail figures)
+  const membersOf = (id: string) => (id === "all" ? bookPorts.map((p) => p.id) : groups.find((g) => g.id === id)?.members ?? [id]);
   const valueOf = (id: string) => {
-    // invested for the rail (current value needs prices: Phase 2)
     const ids = membersOf(id);
-    return tx.filter((t) => ids.includes(t.portfolio_id)).reduce((s, t) => s + (INFLOW.has(t.type) ? Number(t.amount_paise) : 0), 0);
+    return holdings.reduce((s, h) => {
+      const cost = h.lots.reduce((a, l) => a + l.costPaise, 0) || 1;
+      const mine = h.lots.filter((l) => ids.includes(l.portfolioId));
+      if (h.fig.currentPaise == null) return s + mine.reduce((a, l) => a + l.costPaise, 0);
+      if (h.balance) return s + (h.fig.currentPaise * mine.reduce((a, l) => a + l.costPaise, 0)) / cost;
+      return s + mine.reduce((a, l) => a + l.qty, 0) * (h.meta.price_paise ?? 0);
+    }, 0);
   };
-  // the rail only has transactions for the current view loaded, so show a figure only where it is complete
   const showValue = (id: string) => membersOf(id).every((m) => membersOf(selected).includes(m));
   const railList = [
     ...(book === "inv"
@@ -135,6 +143,18 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       : []),
     ...bookPorts.filter((p) => !showType || p.type === showType).map((p) => ({ ...p, type: book === "fno" ? "F&O" : typeLabel(p.type), group: false })),
   ].filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()));
+
+  const xirrByClass = ASSET_CLASSES.map((c) => {
+    const hs = holdings.filter((h) => h.cls === c.code);
+    const ids = new Set(hs.map((h) => h.assetId));
+    return { c, hs, x: hs.length ? xirrPct(rows.filter((r) => ids.has(r.asset_id)), hs, asOf) : null };
+  }).filter((r) => r.hs.length);
+
+  const thingToEdit = current
+    ? { what: "portfolio" as const, id: current.id, name: current.name }
+    : currentGroup
+      ? { what: "group" as const, id: currentGroup.id, name: currentGroup.name }
+      : null;
 
   return (
     <>
@@ -154,8 +174,16 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 </div>
               )}
             </div>
-            <button onClick={soon("Import", 3)}>Import</button>
-            <button onClick={soon("Analytics", 1)}>Analytics <span className="new">NEW</span></button>
+            <div className="dd">
+              <button className="car" onClick={toggle("import")} aria-expanded={open === "import"}>Import</button>
+              {open === "import" && (
+                <div className="panel">
+                  <button className="it" onClick={() => show({ kind: "import" })} disabled={book !== "inv"}>Opening balances (Excel)</button>
+                  <button className="it" onClick={soon("Statement import (CAS, contract notes)", 3)}>Statements (CAS, contract notes)</button>
+                </div>
+              )}
+            </div>
+            <button onClick={() => show({ kind: "analytics" })} disabled={book !== "inv"}>Analytics <span className="new">NEW</span></button>
             <div className="dd">
               <button className="car" onClick={toggle("tools")} aria-expanded={open === "tools"}>Tools</button>
               {open === "tools" && (
@@ -176,7 +204,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               {open === "user" && (
                 <div className="panel">
                   <div className="hd mut" style={{ fontSize: 12 }}>{email}</div>
-                  <button className="it" onClick={soon("My Account", 1)}>My Account</button>
+                  <Link className="it" href="/account">My Account</Link>
                   <ThemeChoice />
                   <hr />
                   <form action={signOut}>
@@ -194,7 +222,17 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
         <div className="sub-in pad">
           <div className="dd">
             <button className="famBtn car" onClick={toggle("fam")} aria-expanded={open === "fam"}>{family.name}</button>
-            {open === "fam" && <FamilyPanel families={families} portfolios={portfolios} href={href} onDone={() => setOpen(null)} say={say} />}
+            {open === "fam" && (
+              <FamilyPanel
+                families={families}
+                portfolios={portfolios}
+                href={href}
+                onDone={() => setOpen(null)}
+                say={say}
+                onEdit={() => show({ kind: "rename", what: "family", id: family.id, name: family.name })}
+                onDelete={() => show({ kind: "delete", what: "family", id: family.id, name: family.name })}
+              />
+            )}
           </div>
           <label className="gsearch">
             <SearchIcon />
@@ -231,23 +269,19 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   <span>{p.name}</span>
                   <small>{p.type}</small>
                 </span>
-                {book === "inv" && showValue(p.id) ? (
-                  <small className="num">{shortRupees(valueOf(p.id))}</small>
-                ) : (
-                  p.group && <GroupIcon />
-                )}
+                {book === "inv" && showValue(p.id) ? <small className="num">{shortRupees(valueOf(p.id))}</small> : p.group && <GroupIcon />}
               </Link>
             ))}
             {!railList.length && <span className="mut" style={{ fontSize: 13 }}>{bookPorts.length ? "No match" : "No portfolios yet."}</span>}
           </div>
-          <button className="addp" onClick={() => setDlg(true)}><span className="plus">+</span>Add Portfolio</button>
+          <button className="addp" onClick={() => show({ kind: "addPortfolio" })}><span className="plus">+</span>Add Portfolio</button>
         </aside>
 
         {/* S04–S07 main */}
         <main className="main pad">
           <div className="phead">
             <span className="crumb">{book === "fno" ? "F&O Portfolio:" : currentGroup ? "Group:" : "Portfolio:"}</span>
-            <h1>{current?.name ?? currentGroup?.name ?? (book === "inv" ? "Family Group" : "—")}</h1>
+            <h1>{viewName}</h1>
             <span className="chip">
               {current
                 ? book === "fno" ? "F&O" : typeLabel(current.type)
@@ -255,30 +289,93 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   ? currentGroup.members.map((m) => portName(m)).join(" + ")
                   : `${bookPorts.length} portfolios combined`}
             </span>
-            <div className="actions">
-              <button className="addc" title="Add a transaction" onClick={soon("Adding transactions", 1)}>+</button>
-              <button className="mb car" onClick={soon("XIRR", 1)}>XIRR</button>
-              <button className="mb car" onClick={soon("Actions menu", 1)}>Actions</button>
-              <button className="mb car" onClick={soon("Preferences", 1)}>Preferences</button>
-              <button className="mb" onClick={soon("Reports", 4)}>Reports</button>
-            </div>
+            {book === "inv" && (
+              <div className="actions">
+                <button className="addc" title="Add a transaction" onClick={() => show({ kind: "tx" })} disabled={!invPorts.length}>+</button>
+                <div className="dd">
+                  <button className="mb car" onClick={toggle("xirr")}>XIRR</button>
+                  {open === "xirr" && (
+                    <div className="panel">
+                      <div className="hd label">Since first investment, a year</div>
+                      <div className="it"><b>{viewName}</b><b className={`num ${tone(xirr)}`}>{pct(xirr)}</b></div>
+                      <hr />
+                      {xirrByClass.map(({ c, x }) => (
+                        <div className="it" key={c.code}><span>{c.name}</span><span className={`num ${tone(x)}`}>{pct(x)}</span></div>
+                      ))}
+                      {unpriced > 0 && <div className="hd note">Blank where a holding has no price yet.</div>}
+                      <div className="hd note">Nifty 50 comparison arrives in Phase 2.</div>
+                    </div>
+                  )}
+                </div>
+                <div className="dd">
+                  <button className="mb car" onClick={toggle("actions")}>Actions</button>
+                  {open === "actions" && (
+                    <div className="panel">
+                      <button className="it" onClick={() => show({ kind: "list" })}>View All Transactions</button>
+                      <button className="it" onClick={() => show({ kind: "tx" })} disabled={!invPorts.length}>Add a transaction</button>
+                      <button className="it" onClick={() => show({ kind: "import" })}>Import opening balances (Excel)</button>
+                      <button className="it" onClick={() => show({ kind: "addPortfolio" })}>Add portfolio or group</button>
+                      {thingToEdit && (
+                        <>
+                          <hr />
+                          <button className="it" onClick={() => show({ kind: "rename", ...thingToEdit })}>Rename {thingToEdit.what}</button>
+                          <button className="it" style={{ color: "var(--loss)" }} onClick={() => show({ kind: "delete", ...thingToEdit })}>Delete {thingToEdit.what}…</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="dd">
+                  <button className="mb car" onClick={toggle("prefs")}>Preferences</button>
+                  {open === "prefs" && (
+                    <div className="panel">
+                      <ThemeChoice />
+                      <hr />
+                      <div className="hd note">Cost method: FIFO (oldest sold first), as income tax requires. Average price is shown for reference.</div>
+                      <div className="hd note">Financial year: April to March.</div>
+                    </div>
+                  )}
+                </div>
+                <button className="mb" onClick={soon("Reports", 4)}>Reports</button>
+                <div className="dd hov">
+                  <button className="anl" title="Analytics" aria-label="Open analytics" onClick={() => show({ kind: "analytics" })}>
+                    <svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true">
+                      <path d="M2 16h16" stroke="currentColor" strokeWidth="1.6" />
+                      <rect x="3" y="9" width="2.6" height="6" fill="currentColor" />
+                      <rect x="7.5" y="6" width="2.6" height="9" fill="currentColor" />
+                      <rect x="12" y="3" width="2.6" height="12" fill="currentColor" />
+                      <path d="M3 7l5-4 4 3 5-4" stroke="var(--accent)" strokeWidth="1.6" fill="none" />
+                    </svg>
+                  </button>
+                  {holdings.length > 0 && (
+                    <div className="panel anpanel hp">
+                      <AnalyticsCards holdings={holdings} xirr={xirr} onOpen={() => show({ kind: "analytics" })} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {book === "fno" ? (
             <div className="tbox">
               <div className="empty">
                 {bookPorts.length ? "No F&O trades yet. The F&O book is built in Phase 5." : "No F&O portfolio in this family yet."}
-                {!bookPorts.length && <button className="addp" onClick={() => setDlg(true)}><span className="plus">+</span>Add Portfolio</button>}
+                {!bookPorts.length && <button className="addp" onClick={() => show({ kind: "addPortfolio" })}><span className="plus">+</span>Add Portfolio</button>}
               </div>
             </div>
           ) : (
             <>
               <section className="summary" aria-label="Summary">
-                <div className="stat"><span className="label">Invested</span><span className="v num">₹{rupees(invested)}</span><span className="s mut">{holdings.length} holdings</span></div>
-                <div className="stat"><span className="label">Current value</span><span className="v num mut">—</span><span className="s mut">needs prices (Phase 2)</span></div>
-                <div className="stat"><span className="label">Today&apos;s gain</span><span className="v num mut">—</span><span className="s mut">needs prices</span></div>
-                <div className="stat"><span className="label">Unrealised gain</span><span className="v num mut">—</span><span className="s mut">needs prices</span></div>
-                <div className="stat"><span className="label">XIRR</span><span className="v num mut">—</span><span className="s mut">Phase 1</span></div>
+                <div className="stat"><span className="label">Invested</span><span className="v num">₹{rupees(total.investedPaise)}</span><span className="s mut">{holdings.length} holdings</span></div>
+                <div className="stat">
+                  <span className="label">Current value</span>
+                  <span className="v num">{total.currentPaise == null ? "—" : `₹${rupees(total.currentPaise)}`}</span>
+                  <span className="s mut">{total.currentPaise == null ? `${unpriced} without a price` : shortRupees(total.currentPaise)}</span>
+                </div>
+                <div className="stat"><span className="label">Today&apos;s gain</span><span className={`v num ${tone(total.todayPaise)}`}>{total.todayPaise == null ? "—" : `₹${rupees(total.todayPaise)}`}</span><span className={`s num ${tone(total.todayPct)}`}>{pct(total.todayPct)}</span></div>
+                <div className="stat"><span className="label">Unrealised gain</span><span className={`v num ${tone(total.unrealisedPaise)}`}>{total.unrealisedPaise == null ? "—" : `₹${rupees(total.unrealisedPaise)}`}</span><span className={`s num ${tone(total.unrealisedPct)}`}>{pct(total.unrealisedPct)}</span></div>
+                <div className="stat"><span className="label">XIRR</span><span className={`v num ${tone(xirr)}`}>{pct(xirr)}</span><span className="s mut">a year, since first buy</span></div>
               </section>
 
               <div className="tabsWrap">
@@ -294,84 +391,79 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 </div>
               </div>
 
-              <label className="asearch" style={{ width: "min(280px, 100%)", background: "var(--surface)" }}>
-                <SearchIcon />
-                <input placeholder="Search assets" aria-label="Search assets" value={assetQ} onChange={(e) => setAssetQ(e.target.value)} />
-              </label>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <label className="asearch" style={{ width: "min(280px, 100%)", background: "var(--surface)" }}>
+                  <SearchIcon />
+                  <input placeholder="Search assets" aria-label="Search assets" value={assetQ} onChange={(e) => setAssetQ(e.target.value)} />
+                </label>
+                <span className="label">Prices typed in · daily prices from Phase 2 · as of {asOf.split("-").reverse().join("-")}</span>
+              </div>
 
               <div className="tbox">
-                {shown.length ? (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Asset</th>
-                        <th>Qty.<br /><span style={{ color: "var(--accent)", fontWeight: 500 }}>Avg. pur. price</span></th>
-                        <th>Amt.<br />Invested</th>
-                        <th>Current<br />Price</th>
-                        <th>Today&apos;s<br />Gain</th>
-                        <th>Unrealised<br />Gain</th>
-                        <th>Current<br />Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ASSET_CLASSES.filter((c) => shown.some((h) => h.cls === c.code)).flatMap((c) => {
-                        const group = shown.filter((h) => h.cls === c.code).sort((a, b) => b.cost - a.cost);
-                        return [
-                          <tr className="grp" key={c.code}>
-                            <td><code className="gcode">{c.chip}</code> {c.name} <span className="chip">{group.length}</span></td>
-                            <td /><td className="num">{rupees(group.reduce((s, h) => s + h.cost, 0))}</td><td /><td /><td /><td />
-                          </tr>,
-                          ...group.map((h) => (
-                            <tr className="row" key={h.id}>
-                              <td>
-                                {h.name}
-                                {combined && (
-                                  <span className="mut" style={{ fontSize: 11 }}>
-                                    {" "}· {h.owners.size > 1 ? `${h.owners.size} members` : portName([...h.owners][0])}
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                {classInfo(h.cls).balance ? <span className="mut">—</span> : (
-                                  <div className="two"><span className="num">{quantity(h.qty)}</span><small className="num">{rupees(h.cost / h.qty)}</small></div>
-                                )}
-                              </td>
-                              <td className="num">{rupees(h.cost)}</td>
-                              <td className="mut">—</td><td className="mut">—</td><td className="mut">—</td><td className="mut">—</td>
-                            </tr>
-                          )),
-                        ];
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr><td>NET WORTH</td><td /><td className="num">{rupees(shownInvested)}</td><td /><td /><td /><td className="mut">—</td></tr>
-                    </tfoot>
-                  </table>
-                ) : (
-                  <div className="empty">
-                    {assetQ ? "No assets match that search." : bookPorts.length ? `Nothing in ${tab === "ALL" ? "this portfolio" : classInfo(tab).name} yet.` : "Add your first portfolio to get started."}
-                    {bookPorts.length ? (
-                      <button className="addp" onClick={soon("Adding transactions", 1)}><span className="plus">+</span>Add a transaction</button>
-                    ) : (
-                      <button className="addp" onClick={() => setDlg(true)}><span className="plus">+</span>Add Portfolio</button>
-                    )}
-                  </div>
-                )}
+                <HoldingsTable
+                  holdings={shown}
+                  combined={combined}
+                  portName={portName}
+                  asOf={asOf}
+                  onSetPrice={(h) => show({ kind: "price", h })}
+                  onAdd={() => (invPorts.length ? show({ kind: "tx" }) : show({ kind: "addPortfolio" }))}
+                  emptyText={
+                    assetQ ? "No assets match that search."
+                      : !invPorts.length ? "Add your first portfolio to get started."
+                        : `Nothing in ${tab === "ALL" ? "this view" : classInfo(tab).name} yet.`
+                  }
+                />
               </div>
-              <span className="note">Phase 0: quantities and invested amounts only. Prices, gains and XIRR are filled in by Phases 1–2.</span>
             </>
           )}
         </main>
       </div>
 
-      {dlg && (
+      {dlg?.kind === "tx" && (
+        <TxDialog
+          portfolios={(currentGroup ? invPorts.filter((p) => currentGroup.members.includes(p.id)) : invPorts).map((p) => ({ id: p.id, name: p.name }))}
+          defaultPortfolio={current?.id}
+          defaultClass={tab}
+          assets={assets}
+          edit={dlg.edit}
+          asOf={asOf}
+          onClose={() => setDlg(null)}
+          onSaved={done}
+        />
+      )}
+      {dlg?.kind === "list" && (
+        <TxList rows={rows} title={viewName} portName={portName} onEdit={(t) => setDlg({ kind: "tx", edit: t })} onClose={() => setDlg(null)} say={(m) => { say(m); router.refresh(); }} />
+      )}
+      {dlg?.kind === "price" && <PriceDialog h={dlg.h} onClose={() => setDlg(null)} onDone={done} />}
+      {dlg?.kind === "rename" && <RenameDialog kind={dlg.what} id={dlg.id} name={dlg.name} onClose={() => setDlg(null)} onDone={done} />}
+      {dlg?.kind === "delete" && (
+        <DeleteDialog
+          kind={dlg.what}
+          id={dlg.id}
+          name={dlg.name}
+          onClose={() => setDlg(null)}
+          onDone={(m) => {
+            setDlg(null);
+            say(m);
+            router.push(dlg.what === "family" ? "/" : `/family/${family.id}`);
+            router.refresh();
+          }}
+        />
+      )}
+      {dlg?.kind === "import" && (
+        <ImportOpening familyId={family.id} portfolios={invPorts.map((p) => p.name)} onClose={() => setDlg(null)} onDone={done} />
+      )}
+      {dlg?.kind === "analytics" && (
+        <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
+      )}
+      {dlg?.kind === "addPortfolio" && (
         <AddPortfolio
           familyId={family.id}
           book={book}
-          invPortfolios={famPorts.filter((p) => p.book === "inv")}
-          onClose={() => setDlg(false)}
+          invPortfolios={invPorts}
+          onClose={() => setDlg(null)}
           onAdded={(id, b, kind) => {
-            setDlg(false);
+            setDlg(null);
             say(kind === "group" ? "Group added" : "Portfolio added");
             router.push(`/family/${family.id}?${b === "fno" ? "book=fno&" : ""}p=${encodeURIComponent(id)}`);
           }}
@@ -388,22 +480,25 @@ function FamilyPanel({
   href,
   onDone,
   say,
+  onEdit,
+  onDelete,
 }: {
   families: Family[];
   portfolios: Portfolio[];
   href: (q: { p?: string; book?: string; fam?: string }) => string;
   onDone: () => void;
   say: (m: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [pending, start] = useTransition();
-  const rows = families.flatMap((f) => [
-    { f, p: null as Portfolio | null },
-    ...portfolios.filter((p) => p.family_id === f.id).map((p) => ({ f, p })),
-  ]).filter((r) => !q || `${r.f.name} ${r.p ? r.p.name : "Family Group"}`.toLowerCase().includes(q.toLowerCase()));
+  const rows = families
+    .flatMap((f) => [{ f, p: null as Portfolio | null }, ...portfolios.filter((p) => p.family_id === f.id).map((p) => ({ f, p }))])
+    .filter((r) => !q || `${r.f.name} ${r.p ? r.p.name : "Family Group"}`.toLowerCase().includes(q.toLowerCase()));
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
@@ -418,9 +513,10 @@ function FamilyPanel({
 
   return (
     <div className="panel left fampanel" onClick={(e) => e.stopPropagation()}>
-      <div style={{ display: "flex", gap: 14 }}>
-        <button className="link" onClick={() => say("Renaming a family arrives in Phase 1")}>✎ Edit Family</button>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <button className="link" onClick={onEdit}>✎ Rename Family</button>
         <button className="link" onClick={() => setAdding(true)}>+ Add Family</button>
+        <button className="link" style={{ color: "var(--loss)", marginLeft: "auto" }} onClick={onDelete}>Delete…</button>
       </div>
       {adding && (
         <form onSubmit={add} style={{ display: "flex", gap: 6 }}>
@@ -529,21 +625,21 @@ function AddPortfolio({
             </div>
           </fieldset>
         ) : (
-        <div className="grid2">
-          <label className="field">
-            Book
-            <select id="portfolioBook" value={b} onChange={(e) => setB(e.target.value)}>
-              <option value="inv">Investments</option>
-              <option value="fno">F&amp;O</option>
-            </select>
-          </label>
-          <label className="field">
-            Type
-            <select id="portfolioType" value={type} onChange={(e) => setType(e.target.value)}>
-              {PORTFOLIO_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </label>
-        </div>
+          <div className="grid2">
+            <label className="field">
+              Book
+              <select id="portfolioBook" value={b} onChange={(e) => setB(e.target.value)}>
+                <option value="inv">Investments</option>
+                <option value="fno">F&amp;O</option>
+              </select>
+            </label>
+            <label className="field">
+              Type
+              <select id="portfolioType" value={type} onChange={(e) => setType(e.target.value)}>
+                {PORTFOLIO_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </label>
+          </div>
         )}
         <div className="err" role="alert">{error}</div>
         <div className="row-end">
