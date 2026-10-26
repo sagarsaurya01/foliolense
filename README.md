@@ -6,6 +6,20 @@ A personal family portfolio tracker for Indian investors: families, portfolios, 
 
 Design approved. The clickable prototype is in [`prototype/index.html`](prototype/index.html). Open it in a browser; it runs on sample data and needs no server.
 
+## Documents
+
+- [`docs/PRD.md`](docs/PRD.md): what FolioLense does, every screen, data model, calculations, imports
+- [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md): phases, tasks, exit checks, what Sagar provides
+
+## Folder
+
+| Folder | What | In git |
+|---|---|---|
+| `prototype/` | Approved clickable prototype | Yes |
+| `docs/` | PRD and build plan | Yes |
+| `sample-files/` | Real statements for building importers | No |
+| `reference/` | MProfit screenshots, old drafts | No |
+
 ## Plan
 
 | Phase | What |

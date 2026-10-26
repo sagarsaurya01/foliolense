@@ -4,3 +4,9 @@ node_modules/
 !.env.example
 *.log
 .DS_Store
+
+# Personal data and reference material stay on this laptop only
+sample-files/*
+!sample-files/README.md
+reference/mprofit-screenshots/
+reference/old-drafts/
