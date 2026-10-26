@@ -36,6 +36,25 @@ export async function createPortfolio(familyId: string, name: string, type: stri
   return { id: data.id };
 }
 
+// A group is a named set of portfolios in one family, shown combined (like Family Group, over fewer members).
+export async function createGroup(familyId: string, name: string, portfolioIds: string[]): Promise<Result & { id?: string }> {
+  const clean = name.trim();
+  if (!clean) return { error: "Enter a group name." };
+  if (portfolioIds.length < 2) return { error: "Pick at least two portfolios for the group." };
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.from("portfolio_groups").insert({ family_id: familyId, name: clean }).select("id").single();
+  if (error) return { error: error.code === "23505" ? "A group with that name already exists in this family." : error.message };
+  const { error: mErr } = await supabase
+    .from("portfolio_group_members")
+    .insert(portfolioIds.map((portfolio_id) => ({ group_id: data.id, portfolio_id })));
+  if (mErr) {
+    await supabase.from("portfolio_groups").delete().eq("id", data.id);
+    return { error: mErr.message };
+  }
+  revalidatePath("/", "layout");
+  return { id: data.id };
+}
+
 // Creates the prototype's sample family in the signed-in account, so the app can be compared with the prototype.
 export async function loadDemoFamily(): Promise<Result> {
   const supabase = await supabaseServer();

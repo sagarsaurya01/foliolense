@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { createFamily, createPortfolio, signOut } from "@/app/actions";
+import { createFamily, createGroup, createPortfolio, signOut } from "@/app/actions";
 import { ASSET_CLASSES, PORTFOLIO_TYPES, classInfo, typeLabel } from "@/lib/assetClasses";
 import { initials, quantity, rupees, shortRupees } from "@/lib/format";
 import { Logo } from "./Logo";
@@ -16,6 +16,7 @@ export type ShellTx = {
   amount_paise: number;
   asset: { id: string; name: string; asset_class: string };
 };
+export type ShellGroup = { id: string; name: string; members: string[] }; // id is "g:<uuid>"
 type Family = { id: string; name: string };
 type Portfolio = { id: string; family_id: string; name: string; type: string; book: string };
 
@@ -24,6 +25,7 @@ type Props = {
   families: Family[];
   family: Family;
   portfolios: Portfolio[];
+  groups: ShellGroup[];
   book: "inv" | "fno";
   selected: string;
   tab: string;
@@ -54,7 +56,7 @@ function rollUp(tx: ShellTx[]) {
   return [...m.values()].filter((h) => h.qty > 1e-9 || h.cost > 0);
 }
 
-export function Shell({ email, families, family, portfolios, book, selected, tab, tx }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, tx }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -67,6 +69,8 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
   const famPorts = portfolios.filter((p) => p.family_id === family.id);
   const bookPorts = famPorts.filter((p) => p.book === book);
   const current = bookPorts.find((p) => p.id === selected);
+  const currentGroup = groups.find((g) => g.id === selected);
+  const combined = selected === "all" || !!currentGroup;
   const holdings = useMemo(() => rollUp(tx), [tx]);
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
@@ -112,14 +116,23 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
   const shown = holdings.filter((h) => (tab === "ALL" || h.cls === tab) && (!assetQ || h.name.toLowerCase().includes(assetQ.toLowerCase())));
   const invested = holdings.reduce((s, h) => s + h.cost, 0);
   const shownInvested = shown.reduce((s, h) => s + h.cost, 0);
-  const valueOf = (pid: string | "all") => {
-    // invested per portfolio for the rail (current value needs prices: Phase 2)
-    const ids = pid === "all" ? bookPorts.map((p) => p.id) : [pid];
+  const membersOf = (id: string) =>
+    id === "all" ? bookPorts.map((p) => p.id) : groups.find((g) => g.id === id)?.members ?? [id];
+  const valueOf = (id: string) => {
+    // invested for the rail (current value needs prices: Phase 2)
+    const ids = membersOf(id);
     return tx.filter((t) => ids.includes(t.portfolio_id)).reduce((s, t) => s + (INFLOW.has(t.type) ? Number(t.amount_paise) : 0), 0);
   };
+  // the rail only has transactions for the current view loaded, so show a figure only where it is complete
+  const showValue = (id: string) => membersOf(id).every((m) => membersOf(selected).includes(m));
   const railList = [
-    ...(book === "inv" ? [{ id: "all", name: "Family Group", type: "All members" }] : []),
-    ...bookPorts.filter((p) => !showType || p.type === showType),
+    ...(book === "inv"
+      ? [
+          { id: "all", name: "Family Group", type: "All members", group: true },
+          ...groups.map((g) => ({ id: g.id, name: g.name, type: `Group · ${g.members.length} portfolios`, group: true })),
+        ]
+      : []),
+    ...bookPorts.filter((p) => !showType || p.type === showType).map((p) => ({ ...p, type: book === "fno" ? "F&O" : typeLabel(p.type), group: false })),
   ].filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
@@ -212,9 +225,13 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
               <Link key={p.id} className="pbtn" href={href({ p: p.id })} aria-current={p.id === selected}>
                 <span className="who">
                   <span>{p.name}</span>
-                  <small>{p.id === "all" ? p.type : book === "fno" ? "F&O" : typeLabel(p.type)}</small>
+                  <small>{p.type}</small>
                 </span>
-                {book === "inv" && (selected === "all" || p.id === selected) && <small className="num">{shortRupees(valueOf(p.id))}</small>}
+                {book === "inv" && showValue(p.id) ? (
+                  <small className="num">{shortRupees(valueOf(p.id))}</small>
+                ) : (
+                  p.group && <GroupIcon />
+                )}
               </Link>
             ))}
             {!railList.length && <span className="mut" style={{ fontSize: 13 }}>{bookPorts.length ? "No match" : "No portfolios yet."}</span>}
@@ -225,9 +242,15 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
         {/* S04–S07 main */}
         <main className="main pad">
           <div className="phead">
-            <span className="crumb">{book === "fno" ? "F&O Portfolio:" : "Portfolio:"}</span>
-            <h1>{current?.name ?? (book === "inv" ? "Family Group" : "—")}</h1>
-            <span className="chip">{current ? (book === "fno" ? "F&O" : typeLabel(current.type)) : `${bookPorts.length} portfolios combined`}</span>
+            <span className="crumb">{book === "fno" ? "F&O Portfolio:" : currentGroup ? "Group:" : "Portfolio:"}</span>
+            <h1>{current?.name ?? currentGroup?.name ?? (book === "inv" ? "Family Group" : "—")}</h1>
+            <span className="chip">
+              {current
+                ? book === "fno" ? "F&O" : typeLabel(current.type)
+                : currentGroup
+                  ? currentGroup.members.map((m) => portName(m)).join(" + ")
+                  : `${bookPorts.length} portfolios combined`}
+            </span>
             <div className="actions">
               <button className="addc" title="Add a transaction" onClick={soon("Adding transactions", 1)}>+</button>
               <button className="mb car" onClick={soon("XIRR", 1)}>XIRR</button>
@@ -267,7 +290,7 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
                 </div>
               </div>
 
-              <label className="asearch" style={{ flex: "0 1 280px", background: "var(--surface)" }}>
+              <label className="asearch" style={{ width: "min(280px, 100%)", background: "var(--surface)" }}>
                 <SearchIcon />
                 <input placeholder="Search assets" aria-label="Search assets" value={assetQ} onChange={(e) => setAssetQ(e.target.value)} />
               </label>
@@ -298,7 +321,7 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
                             <tr className="row" key={h.id}>
                               <td>
                                 {h.name}
-                                {selected === "all" && (
+                                {combined && (
                                   <span className="mut" style={{ fontSize: 11 }}>
                                     {" "}· {h.owners.size > 1 ? `${h.owners.size} members` : portName([...h.owners][0])}
                                   </span>
@@ -341,11 +364,12 @@ export function Shell({ email, families, family, portfolios, book, selected, tab
         <AddPortfolio
           familyId={family.id}
           book={book}
+          invPortfolios={famPorts.filter((p) => p.book === "inv")}
           onClose={() => setDlg(false)}
-          onAdded={(id, b) => {
+          onAdded={(id, b, kind) => {
             setDlg(false);
-            say("Portfolio added");
-            router.push(`/family/${family.id}?${b === "fno" ? "book=fno&" : ""}p=${id}`);
+            say(kind === "group" ? "Group added" : "Portfolio added");
+            router.push(`/family/${family.id}?${b === "fno" ? "book=fno&" : ""}p=${encodeURIComponent(id)}`);
           }}
         />
       )}
@@ -426,18 +450,22 @@ function FamilyPanel({
 function AddPortfolio({
   familyId,
   book,
+  invPortfolios,
   onClose,
   onAdded,
 }: {
   familyId: string;
   book: string;
+  invPortfolios: Portfolio[];
   onClose: () => void;
-  onAdded: (id: string, book: string) => void;
+  onAdded: (id: string, book: string, kind: "portfolio" | "group") => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const [kind, setKind] = useState<"portfolio" | "group">("portfolio");
   const [name, setName] = useState("");
   const [b, setB] = useState(book);
   const [type, setType] = useState("individual");
+  const [members, setMembers] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
@@ -449,20 +477,54 @@ function AddPortfolio({
     e.preventDefault();
     setError("");
     start(async () => {
-      const r = await createPortfolio(familyId, name, type, b);
-      if (r.error) setError(r.error);
-      else onAdded(r.id!, b);
+      if (kind === "group") {
+        const r = await createGroup(familyId, name, members);
+        if (r.error) setError(r.error);
+        else onAdded(`g:${r.id}`, "inv", "group");
+      } else {
+        const r = await createPortfolio(familyId, name, type, b);
+        if (r.error) setError(r.error);
+        else onAdded(r.id!, b, "portfolio");
+      }
     });
   };
+  const flip = (id: string) => setMembers((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
 
   return (
     <dialog ref={ref} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()}>
       <form className="dlg" onSubmit={save}>
-        <h2>Add portfolio</h2>
+        <h2>{kind === "group" ? "Add group" : "Add portfolio"}</h2>
+        <div className="seg" role="group" aria-label="What to add">
+          {(["portfolio", "group"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={kind === k}
+              onClick={() => { setKind(k); setError(""); }}
+              style={{ flex: 1, border: 0, padding: "6px 0", borderRadius: 6, fontWeight: 600, fontSize: 13, background: kind === k ? "var(--brand)" : "transparent", color: kind === k ? "var(--brand-ink)" : "var(--muted)" }}
+            >
+              {k === "portfolio" ? "Portfolio" : "Group"}
+            </button>
+          ))}
+        </div>
         <label className="field">
           Name
-          <input id="portfolioName" autoFocus placeholder="e.g. Meera HUF" value={name} onChange={(e) => setName(e.target.value)} />
+          <input id="portfolioName" autoFocus placeholder={kind === "group" ? "e.g. Ajay + HUF" : "e.g. Meera HUF"} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
+        {kind === "group" ? (
+          <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend style={{ marginBottom: 6 }}>Portfolios in this group (pick two or more)</legend>
+            <div style={{ display: "grid", gap: 6, maxHeight: 220, overflow: "auto" }}>
+              {invPortfolios.map((p) => (
+                <label key={p.id} style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--ink)", fontSize: 14 }}>
+                  <input type="checkbox" checked={members.includes(p.id)} onChange={() => flip(p.id)} />
+                  {p.name} <span className="mut" style={{ fontSize: 12 }}>{typeLabel(p.type)}</span>
+                </label>
+              ))}
+              {invPortfolios.length < 2 && <span className="mut">Add at least two portfolios first.</span>}
+            </div>
+          </fieldset>
+        ) : (
         <div className="grid2">
           <label className="field">
             Book
@@ -478,13 +540,25 @@ function AddPortfolio({
             </select>
           </label>
         </div>
+        )}
         <div className="err" role="alert">{error}</div>
         <div className="row-end">
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" disabled={pending}>{pending ? "Adding…" : "Add portfolio"}</button>
+          <button className="btn primary" disabled={pending}>{pending ? "Adding…" : kind === "group" ? "Add group" : "Add portfolio"}</button>
         </div>
       </form>
     </dialog>
+  );
+}
+
+function GroupIcon() {
+  return (
+    <svg width="16" height="14" viewBox="0 0 16 14" aria-label="group" style={{ color: "var(--muted)", flex: "none" }}>
+      <circle cx="5.5" cy="4" r="2.6" fill="currentColor" />
+      <circle cx="11.5" cy="4.6" r="2.1" fill="currentColor" opacity=".7" />
+      <path d="M0.8 13c0-2.9 2.1-4.8 4.7-4.8s4.7 1.9 4.7 4.8z" fill="currentColor" />
+      <path d="M10.9 13c0-1.6-.5-3-1.4-3.9.6-.4 1.3-.6 2-.6 2.1 0 3.7 1.6 3.7 4.5z" fill="currentColor" opacity=".7" />
+    </svg>
   );
 }
 
