@@ -317,7 +317,8 @@ alter table public.preferences              enable row level security;
 alter table public.audit_log                enable row level security;
 
 -- families
-create policy families_select on public.families for select to authenticated using (public.can_read_family(id));
+-- owner_id is checked first so insert ... returning can see the row it just created (see 0002)
+create policy families_select on public.families for select to authenticated using (owner_id = auth.uid() or public.can_read_family(id));
 create policy families_insert on public.families for insert to authenticated with check (owner_id = auth.uid());
 create policy families_update on public.families for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy families_delete on public.families for delete to authenticated using (owner_id = auth.uid());
