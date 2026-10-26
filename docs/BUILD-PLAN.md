@@ -12,14 +12,14 @@ Screen IDs (S01…) and sections (§) refer to the PRD.
 
 | Phase | Name | Length | You can use it for | Needs from Sagar |
 |---|---|---|---|---|
-| 0 | Foundation | 2–3 days | Sign in, see the prototype screens live | Supabase URL + anon key, Railway access |
+| 0 | Foundation | 2–3 days | Sign in, see the app shell on your laptop | Supabase URL + anon key |
 | 1 | Core tracker | 2 weeks | Enter holdings by hand or Excel; correct totals and XIRR | Portfolio list (PRD §12 Q1) |
 | 2 | Daily prices | 4 days | Current prices and today's gain fill themselves | Nothing |
 | 3 | Statement imports | 2 weeks | Upload CAS / e-CAS / contract notes | Real sample files + passwords |
 | 4 | Reports and tax | 1.5 weeks | Capital gains, 112A CSV, income; CA can file | One past capital-gains statement; CA's format |
 | 5 | F&O book | 1 week | F&O P&L by year, charges, turnover | F&O contract notes |
 | 6 | Broker sync + corporate actions | 1 week | Trades arrive without uploads; splits/bonuses applied | API keys if you choose to pay |
-| 7 | MProfit migration + hardening | 4 days | One-step move from MProfit; backups running | One MProfit export |
+| 7 | MProfit migration, hardening, go live | 5 days | One-step move from MProfit; backups running; live on Railway | One MProfit export, Railway access |
 
 Phases run in order. Phases 4 and 5 can swap if F&O matters more for the coming tax season.
 
@@ -32,15 +32,17 @@ Phases run in order. Phases 4 and 5 can swap if F&O matters more for the coming 
 | # | Task | Done when |
 |---|---|---|
 | 0.1 | Create the `web/` Next.js + TypeScript app; port the prototype's colour and type tokens into `web/app/tokens.css` (light + dark) | Home page matches the prototype's colours and fonts in both themes |
-| 0.2 | Create the `worker/` Python FastAPI app with a `/health` route | `GET /health` returns ok on Railway |
+| 0.2 | Create the `worker/` Python FastAPI app with a `/health` route | `GET /health` returns ok locally |
 | 0.3 | Supabase: connect the project; write `supabase/migrations/0001_schema.sql` (PRD §5) and `0002_rls.sql` (§5.1) | Tables exist; RLS test: user B cannot read user A's family (automated test) |
 | 0.4 | Auth screens (S18): sign up, sign in, reset password, sign out | You can create an account and sign in |
 | 0.5 | App shell: S01 top bar, S02 family bar, S03 rail, routing `/family/[id]` and `/portfolio/[id]` | Navigation works with empty data |
 | 0.6 | Seed script: loads the prototype's sample "Mehra Family" into a demo account | Demo account shows the same numbers as the prototype |
-| 0.7 | Railway: `web` and `worker` services, environment variables, auto-deploy from `main` | A push to GitHub deploys within 5 minutes |
+| 0.7 | One command to run everything on the laptop (`npm run dev` starts web + worker) | Works from a fresh clone with only `.env.local` filled in |
 | 0.8 | CI on GitHub Actions: type-check, lint, unit tests on every push | A red ✗ appears on GitHub if a test fails |
 
-**Exit check:** you open `foliolense-web.up.railway.app`, sign in, and see the app shell.
+**Exit check:** on your laptop you open `http://localhost:3000`, sign in, and see the app shell with the demo family.
+
+The app runs on the laptop (talking to the free Supabase in the cloud) until Phase 7. Nothing is deployed before then.
 
 ---
 
@@ -83,7 +85,7 @@ Phases run in order. Phases 4 and 5 can swap if F&O matters more for the coming 
 | 2.2 | `jobs/prices_nse.py`: NSE bhavcopy → `prices` by ISIN; BSE fallback | All held stocks/ETFs priced, BSE-only scrips too |
 | 2.3 | `jobs/indices.py`: Nifty 50, Nifty Bank, Sensex closes | Rail shows real index values |
 | 2.4 | Stock master refresh (EQUITY_L + BSE master), weekly | New listings found by search |
-| 2.5 | Railway cron: 18:30 and 08:00 IST trading days; 23:30 for NAVs | 5 consecutive trading days loaded with no gaps |
+| 2.5 | Price jobs runnable on demand (`npm run prices`) and on a schedule: the laptop runs them (Windows Task Scheduler) until go-live, then Railway cron at 18:30 and 08:00 IST, 23:30 for NAVs | 5 consecutive trading days loaded with no gaps |
 | 2.6 | Stale-price amber dot; "Prices as of" banner on job failure | Simulated failure shows the banner |
 | 2.7 | Gold price entry (IBJA, manual fallback) | Physical gold valued |
 | 2.8 | One-time load of 31-Jan-2018 FMV for grandfathering | FMV present for every held pre-2018 ISIN |
@@ -173,8 +175,9 @@ Phases run in order. Phases 4 and 5 can swap if F&O matters more for the coming 
 | 7.4 | Security pass: RLS tests for every table, no service key in the browser bundle, headers | Checklist all ✓ |
 | 7.5 | Phone-width pass (390 px) and dark-mode pass | No page scrolls sideways |
 | 7.6 | Performance pass with 20,000 transactions | Holdings < 2 s |
+| 7.7 | **Go live on Railway:** `web` + `worker` services, secret variables, cron for price jobs and backups, auto-deploy from `main` | Live at `*.up.railway.app`; a push to GitHub deploys within 5 minutes |
 
-**Exit check:** you stop using MProfit.
+**Exit check:** FolioLense is live on Railway and you stop using MProfit.
 
 ---
 
@@ -206,8 +209,7 @@ Rule: no phase is "done" until its exit check passes with real data.
 
 | When | What | How |
 |---|---|---|
-| Phase 0 | Supabase **Project URL** + **anon key** | Supabase → Project Settings → API. Never send the service_role key or DB password in chat; paste it into Railway's Variables yourself |
-| Phase 0 | Railway | Create a project "foliolense" and connect the GitHub repo, or let me do it via the Railway CLI after you log in |
+| Phase 0 | Supabase **Project URL** + **anon key** | Supabase → Project Settings → API. Never send the service_role key or DB password in chat; you paste it into `.env.local` yourself (later into Railway's Variables) |
 | Phase 1 | List of portfolios to create | Reply in chat |
 | Phase 3 | Sample files into `sample-files/`: CAMS CAS, KFintech CAS, NSDL e-CAS, CDSL e-CAS, Zerodha CN + tradebook, Anand Rathi EQ CN, Groww CN, ICICI + HDFC statements | Copy into the folder |
 | Phase 3 | Passwords for those files | Type them yourself when the test runs |
@@ -215,6 +217,7 @@ Rule: no phase is "done" until its exit check passes with real data.
 | Phase 5 | F&O contract notes (Zerodha, Anand Rathi) + broker's F&O P&L for one FY | Copy into `sample-files/` |
 | Phase 6 | Decision on Kite Connect / DhanHQ subscriptions; API keys if yes | Keys go in Railway Variables |
 | Phase 7 | One MProfit export (Actions → View All Transactions → Export to CSV), per portfolio | Copy into `sample-files/` |
+| Phase 7 | Railway | Run `railway login` once in your terminal; I set up the services from there |
 
 ---
 
@@ -223,7 +226,7 @@ Rule: no phase is "done" until its exit check passes with real data.
 | Item | Cost |
 |---|---|
 | Supabase | Free plan |
-| Railway | Hobby plan, about $5/month (covers web + worker + cron at this size) |
+| Railway | Hobby plan, about $5/month, only from Phase 7 (go-live) |
 | Domain | Not needed (`*.up.railway.app`) |
 | Price data (NSE, BSE, AMFI) | Free |
 | Google Drive backups | Free (existing account) |

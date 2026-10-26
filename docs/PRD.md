@@ -486,7 +486,7 @@ Each parser is built from a **real sample file** in `sample-files/` (never commi
 | Styling | CSS variables from the prototype (`--brand`, `--accent`, …) + CSS modules | The approved look carries over exactly, light and dark |
 | Database + login + file storage | Supabase free plan (Postgres, Auth, Storage) | Free, RLS built in |
 | Worker | Python 3.12 + FastAPI | Statement parsing (`casparser`, `pdfplumber`), price jobs |
-| Hosting | Railway: `web` (Next.js) + `worker` (Python) + cron | Sagar already has Railway |
+| Hosting | Laptop during the build (localhost); Railway at go-live (Phase 7): `web` + `worker` + cron | Sagar already has Railway; nothing to pay until it's finished |
 | Tests | Vitest (calculations), pytest (parsers, with tie-out), Playwright (click-through) | |
 | Money maths | `decimal.js` (web), `Decimal` (worker) | No floating-point drift |
 
