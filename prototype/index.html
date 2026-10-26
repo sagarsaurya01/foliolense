@@ -1,0 +1,1175 @@
+<meta charset="utf-8">
+<title>FolioLense</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: deep-green brand bar, portfolio rail on the left, ledger-style holdings table on the right, modals for Import / Reports / Account */
+:root{
+  --bg:#f2f5f3; --surface:#ffffff; --surface-2:#eaf0ed; --ink:#15231e; --muted:#5b6a64; --line:#d8e1dd;
+  --brand:#0f3d35; --brand-2:#164d43; --brand-ink:#e6f1ed; --brand-muted:#9fbfb5;
+  --accent:#d9603a; --accent-ink:#ffffff; --accent-soft:#fbe4da;
+  --sel:#fff1cf; --sel-line:#e9b949;
+  --gain:#137a46; --loss:#c23a3a; --shadow:0 10px 30px rgba(10,40,32,.16);
+  --f-display:"Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1412; --surface:#141e1b; --surface-2:#1a2723; --ink:#e2ebe7; --muted:#90a29b; --line:#27362f;
+  --brand:#09231e; --brand-2:#123630; --brand-ink:#e2efea; --brand-muted:#8fb0a6;
+  --accent:#ee8158; --accent-ink:#1b0d07; --accent-soft:#3b2318;
+  --sel:#3a3018; --sel-line:#c99b2f;
+  --gain:#4cc488; --loss:#f07b7b; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1412; --surface:#141e1b; --surface-2:#1a2723; --ink:#e2ebe7; --muted:#90a29b; --line:#27362f;
+  --brand:#09231e; --brand-2:#123630; --brand-ink:#e2efea; --brand-muted:#8fb0a6;
+  --accent:#ee8158; --accent-ink:#1b0d07; --accent-soft:#3b2318;
+  --sel:#3a3018; --sel-line:#c99b2f;
+  --gain:#4cc488; --loss:#f07b7b; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--brand)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.gain{color:var(--gain)} .loss{color:var(--loss)} .mut{color:var(--muted)}
+.pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--brand-muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.dark{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:600}
+.ico{background:none;border:0;padding:6px;border-radius:6px;display:grid;place-items:center;color:var(--ink)}
+.ico:hover{background:var(--surface-2)}
+
+/* top bar */
+.top{background:var(--brand);color:var(--brand-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:6}
+.top-in{display:flex;align-items:center;gap:16px;padding-block:9px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.01em}
+.logo b{color:var(--accent);font-weight:800}
+.sample{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--brand-muted);color:var(--brand-muted);padding:2px 8px;border-radius:999px}
+.menu{display:flex;gap:2px;margin-left:auto;flex-wrap:wrap;align-items:center}
+.menu>.dd>button,.menu>button{background:none;border:0;color:var(--brand-ink);padding:6px 10px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:5px}
+.menu>.dd>button:hover,.menu>button:hover{background:var(--brand-2)}
+.new{font-size:9px;font-weight:700;background:var(--accent);color:var(--accent-ink);padding:1px 5px;border-radius:4px;letter-spacing:.04em}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:600;font-size:11px}
+.car::after{content:"";border:4px solid transparent;border-top-color:currentColor;margin-top:4px}
+
+/* dropdowns */
+.dd{position:relative}
+.panel{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);z-index:30;min-width:220px;padding:6px}
+.panel.left{right:auto;left:0}
+.panel .it{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:6px;font-size:13px}
+.panel .it:hover{background:var(--surface-2)}
+.panel hr{border:0;border-top:1px solid var(--line);margin:5px 4px}
+.panel .hd{padding:6px 10px 4px}
+.blogo{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+
+/* sub bar */
+.sub{background:var(--surface);border-bottom:1px solid var(--line)}
+.sub-in{display:flex;align-items:center;gap:12px;padding-block:9px;flex-wrap:wrap}
+.famBtn{font-family:var(--f-display);font-weight:700;font-size:18px;background:transparent;border:0;padding:4px 2px;display:flex;align-items:center;gap:8px}
+.fampanel{width:min(370px,calc(100vw - 32px));padding:12px;display:grid;gap:10px}
+.fampanel .row{display:flex;gap:14px}
+.fampanel .list{max-height:300px;overflow:auto;border-top:1px solid var(--line)}
+.fampanel .list .it{border-bottom:1px solid var(--line);border-radius:0}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.field input,.field select,.inp{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:8px 9px;font-size:14px;color:var(--ink);min-width:0}
+.gsearch,.asearch{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--bg);min-width:0}
+.gsearch{margin-left:auto;flex:0 1 320px}
+.gsearch input,.asearch input{border:0;background:transparent;outline:none;min-width:0;width:100%}
+
+/* body grid */
+.shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:calc(100vh - 110px)}
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:14px}
+.seg{display:flex;background:var(--surface-2);border-radius:8px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;padding:6px 0;border-radius:6px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+.idx{display:grid;gap:6px}
+.idx div{display:flex;justify-content:space-between;font-size:13px}
+.idx .nm{font-weight:600}
+.plist{display:flex;flex-direction:column;gap:6px}
+.pbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--surface);padding:9px 11px;border-radius:8px;font-size:13px}
+.pbtn small{color:var(--muted);font-size:11px}
+.pbtn:hover{border-color:var(--brand-muted)}
+.pbtn[aria-current="true"]{background:var(--sel);border-color:var(--sel-line);font-weight:600}
+.pbtn .who{display:flex;flex-direction:column;gap:1px;min-width:0}
+.addp{display:flex;align-items:center;gap:8px;background:none;border:0;padding:4px 2px;font-weight:600;color:var(--accent);font-size:13px}
+.plus{width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:15px;line-height:1}
+.rail .reset{margin-top:auto;border:0;background:none;color:var(--muted);font-size:12px;text-align:left;padding:0;text-decoration:underline}
+
+/* main */
+.main{padding-block:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.phead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.phead h1{font-family:var(--f-display);font-size:21px;margin:0;text-wrap:balance}
+.phead .crumb{color:var(--muted);font-size:13px}
+.actions{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.actions .dd>button.mb{background:none;border:0;padding:6px 9px;border-radius:6px;font-size:13px;font-weight:500;display:flex;gap:5px;align-items:center}
+.actions .dd>button.mb:hover{background:var(--surface-2)}
+.addc{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);border:0;font-size:18px;line-height:1;display:grid;place-items:center}
+.anl{background:var(--brand);color:var(--brand-ink);border:0;border-radius:7px;padding:5px 7px;display:grid;place-items:center}
+
+/* summary strip */
+.summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.stat{padding:11px 14px;display:flex;flex-direction:column;gap:3px;border-left:1px solid var(--line);min-width:0}
+.stat:first-child{border-left:0}
+.stat .v{font-size:17px;font-weight:500}
+.stat .s{font-size:12px}
+
+/* tabs */
+.tabsWrap{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.tabsWrap .arr{border:0;background:var(--surface-2);padding:0 8px;color:var(--muted)}
+.tabsWrap .arr:first-child{border-radius:10px 0 0 10px}.tabsWrap .arr:last-child{border-radius:0 10px 10px 0}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:0;border-right:1px solid var(--line);background:transparent;padding:9px 14px;font-size:13px;white-space:nowrap}
+.tab code{font-family:var(--f-num);font-size:10px;border:1px solid var(--muted);padding:0 4px;border-radius:3px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--brand);color:var(--brand-ink)}
+.tab[aria-selected="true"] code{color:var(--brand-ink);border-color:var(--brand-muted)}
+.tab .n{font-family:var(--f-num);font-size:11px;opacity:.65}
+
+/* table */
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.asearch{flex:0 1 280px;background:var(--surface)}
+.tbox{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;max-height:62vh}
+table{border-collapse:collapse;width:100%;min-width:860px}
+th,td{padding:8px 12px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;background:var(--surface);z-index:2;font-size:12px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);vertical-align:bottom}
+thead th button{background:none;border:0;padding:0;font-weight:600;color:inherit;text-align:inherit;line-height:1.35}
+thead th button[data-on]{color:var(--ink)}
+thead th .sub2{color:var(--accent);font-weight:500}
+.two{display:flex;flex-direction:column;align-items:flex-end;line-height:1.3}
+.two small{font-size:11.5px;color:var(--muted)}
+.two.q span{border-bottom:1px solid var(--line);padding-left:18px}
+.two.q small{color:var(--accent)}
+td .two small.gain,td .two small.loss,.two.gain small,.two.loss small{color:inherit}
+tbody tr.row{border-bottom:1px solid var(--line)}
+tbody tr.row:hover{background:var(--surface-2)}
+tbody tr.row.open{background:var(--sel)}
+tr.grp td{background:var(--surface-2);font-weight:600;border-bottom:1px solid var(--line)}
+tr.grp button{background:none;border:0;padding:0;font-weight:600;display:flex;gap:8px;align-items:center}
+.gcode{font-family:var(--f-num);font-size:10px;font-weight:500;border:1px solid var(--muted);padding:0 4px;border-radius:3px;color:var(--muted)}
+.caret{display:inline-block;width:14px;color:var(--muted);transition:transform .15s}
+[aria-expanded="true"] .caret{transform:rotate(90deg)}
+.nm button{background:none;border:0;padding:0;display:flex;gap:6px;align-items:center;text-align:left}
+.own{font-size:11px;color:var(--muted)}
+.xp{display:inline-grid;place-items:center;width:16px;height:16px;font-size:10px;font-weight:700;color:var(--loss);border:1px solid currentColor;border-radius:3px}
+tr.lot td{background:var(--bg);font-size:12.5px;color:var(--muted);border-bottom:1px dashed var(--line)}
+tr.lot td:first-child{padding-left:42px}
+tfoot td{position:sticky;bottom:0;background:var(--sel);font-weight:600;border-top:2px solid var(--sel-line)}
+tfoot tr.chg td{bottom:auto;position:static;border-top:1px solid var(--sel-line);font-weight:500;font-size:12.5px}
+.empty{padding:44px 16px;display:grid;place-items:center;gap:10px;color:var(--muted)}
+
+/* analytics popover */
+.anpanel{width:min(640px,calc(100vw - 32px));display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:10px}
+.acard{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;min-width:0;background:var(--surface);text-align:left;align-content:start;transition:border-color .15s,transform .15s}
+.acard:hover{border-color:var(--accent);transform:translateY(-2px)}
+/* hover preview: shown only while the pointer is over the icon or the cards */
+.dd.hov>.hp{display:none}
+.dd.hov:hover>.hp{display:grid}
+.dd.hov>.hp::before{content:"";position:absolute;left:0;right:0;top:-10px;height:10px}
+.anfull{display:grid;gap:14px;padding:18px}
+.anfull .anpanel{width:auto;padding:0;grid-template-columns:repeat(3,minmax(0,1fr))}
+.anfull table{min-width:520px}
+.anfull th{position:static}
+@media (max-width:980px){.anfull .anpanel{grid-template-columns:minmax(0,1fr)}}
+.acard .go{font-size:12px;color:var(--accent);font-weight:600}
+.acard h4{margin:0;font-family:var(--f-display);font-size:14px}
+.acard svg{width:100%;height:auto;display:block}
+.mini{font-size:11px;color:var(--muted);display:grid;gap:3px}
+.mini span{display:flex;align-items:center;gap:6px;justify-content:space-between}
+.mini i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+
+/* modals */
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:0;box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(5,20,16,.5)}
+dialog.wide{width:min(1100px,calc(100vw - 32px));max-height:calc(100vh - 48px)}
+dialog.small{width:min(520px,calc(100vw - 32px))}
+.mhead{display:flex;align-items:stretch;border-bottom:1px solid var(--line);min-height:52px}
+.mhead>*{display:flex;align-items:center;padding:0 18px;border-right:1px solid var(--line)}
+.mhead .grow{flex:1}
+.mhead .x{background:var(--brand);color:var(--brand-ink);border:0;padding:0 20px;font-size:20px;border-radius:0 12px 0 0;border-right:0}
+.mhead button.tabb{background:none;border:0;border-right:1px solid var(--line);font-weight:600;position:relative}
+.mhead button.tabb[aria-pressed="true"]{background:var(--surface-2)}
+.badge{position:absolute;top:8px;right:6px;background:var(--loss);color:#fff;font-size:9px;font-weight:700;border-radius:999px;padding:1px 5px}
+.mbody{display:grid;min-height:420px;max-height:calc(100vh - 140px);overflow:auto}
+.dlg{padding:18px;display:grid;gap:12px}
+.dlg h2{font-family:var(--f-display);margin:0;font-size:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row-end{display:flex;justify-content:flex-end;gap:8px}
+.err{color:var(--loss);font-size:12px;min-height:1em}
+
+/* import */
+.imp{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.imp .lst{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.imp .srch{background:var(--surface-2);padding:10px 14px}
+.imp table{min-width:0}
+.imp td,.imp th{padding:12px 14px}
+.imp th{position:static;font-weight:500;font-size:11px}
+.imp tr.trow{border-bottom:1px solid var(--line);cursor:pointer}
+.imp tr.trow:hover,.imp tr.trow.on{background:var(--surface-2)}
+.fmt{font-weight:600;font-size:12px}
+.fmt.PDF{color:var(--loss)} .fmt.Excel{color:var(--gain)} .fmt.API,.fmt.CSV{color:var(--ink)}
+.drop{margin:auto;width:min(340px,90%);border:2px dashed var(--brand-muted);border-radius:10px;padding:32px 18px;display:grid;justify-items:center;gap:12px;text-align:center;background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.rpane{display:flex;flex-direction:column;gap:12px;padding:20px;min-width:0}
+.log{display:grid;gap:8px}
+.log div{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;display:grid;gap:4px}
+.imp.wide-r{grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr)}
+.star{background:none;border:0;font-size:17px;color:var(--sel-line);padding:2px 6px;line-height:1}
+.wz{display:grid;gap:12px;align-content:start;min-width:0}
+.steps{display:flex;gap:6px;flex-wrap:wrap;font-size:12px}
+.steps>span{padding:3px 10px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.steps>span.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
+.steps>span.done{background:var(--accent-soft);color:var(--accent)}
+.st-chip{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.steps>.st-Mapped,.st-Mapped{background:color-mix(in srgb,var(--gain) 16%,transparent);color:var(--gain)}
+.steps>.st-Map,.st-Map{background:var(--sel);color:var(--ink);box-shadow:inset 0 0 0 1px var(--sel-line)}
+.steps>.st-Fully,.st-Fully{background:var(--surface-2);color:var(--muted)}
+.rv table{min-width:620px}.rv th{position:static}.rv td,.rv th{padding:7px 10px}
+.rv tr.dup td:not(:first-child){color:var(--muted);text-decoration:line-through}
+.vfilters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+
+/* reports */
+.rep{grid-template-columns:220px 260px minmax(0,1fr)}
+.rep .cats{border-right:1px solid var(--line);padding:12px;display:grid;gap:8px;align-content:start;background:var(--surface-2)}
+.rep .cats button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:12px 14px;text-align:left;font-weight:500}
+.rep .cats button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.rep .rl{border-right:1px solid var(--line);display:flex;flex-direction:column}
+.rep .rl button{background:none;border:0;border-bottom:1px solid var(--line);padding:14px 16px;text-align:left;display:flex;justify-content:space-between;gap:8px}
+.rep .rl button[aria-pressed="true"]{background:var(--sel)}
+.rep .det{padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.rep .det h3{margin:0;font-family:var(--f-display);font-size:19px;display:flex;justify-content:space-between;gap:10px}
+.rep .det p,.rep .det ul{margin:0;line-height:1.55;max-width:62ch}
+.rep .out{overflow:auto;border:1px solid var(--line);border-radius:8px}
+.rep .out table{min-width:520px}
+.rep .out th{position:static}
+.colhead{padding:12px 16px;font-family:var(--f-display);font-weight:700;font-size:15px;border-bottom:1px solid var(--line)}
+
+/* account */
+.acct{display:grid;grid-template-columns:auto 1fr;gap:14px 26px;align-items:center;padding:6px 4px}
+.acct dt{color:var(--muted)} .acct dd{margin:0}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:60;max-width:calc(100vw - 32px)}
+.toast.on{opacity:1}
+
+@media (max-width:980px){
+  .summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat{border-left:0;border-top:1px solid var(--line)}
+  .stat:nth-child(-n+2){border-top:0}
+  .stat:nth-child(even){border-left:1px solid var(--line)}
+  .rep{grid-template-columns:minmax(0,1fr)}
+  .rep .cats{display:flex;overflow-x:auto}
+  .rep .cats button{flex:0 0 auto}
+  .imp,.imp.wide-r{grid-template-columns:minmax(0,1fr)}
+  .anpanel{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .rail{border-right:0;border-bottom:1px solid var(--line)}
+  .plist{flex-direction:row;overflow-x:auto}
+  .pbtn{flex:0 0 auto}
+  .idx{grid-template-columns:1fr 1fr}
+  .gsearch{flex-basis:100%}
+  .rail .reset{margin-top:0}
+  .menu{margin-left:0}
+  .panel{position:fixed;left:16px;right:16px;top:auto;min-width:0;width:auto}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="top-in pad">
+    <div class="logo">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M7 13.5l2.6-2.6 2 2 3.4-4" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 17l6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+      Folio<b>Lense</b>
+    </div>
+    <span class="sample">Prototype · sample data</span>
+    <nav class="menu" aria-label="Main menu">
+      <div class="dd"><button data-dd="api" class="car">API</button>
+        <div class="panel" id="dd-api" hidden>
+          <div class="hd label">Connect a broker</div>
+          <button class="it" data-soon="Zerodha Kite connect"><span>Zerodha</span><span class="blogo" style="background:#387ed1">Z</span></button>
+          <button class="it" data-soon="Dhan connect"><span>Dhan</span><span class="blogo" style="background:#1d9a6c">D</span></button>
+          <button class="it" data-soon="Upstox connect"><span>Upstox</span><span class="blogo" style="background:#5a2d91">U</span></button>
+          <button class="it" data-soon="Angel One connect"><span>Angel One</span><span class="blogo" style="background:#e4572e">A</span></button>
+        </div></div>
+      <button data-open="import">Import</button>
+      <button data-open="analytics">Analytics <span class="new">NEW</span></button>
+      <div class="dd"><button data-dd="tools" class="car">Tools</button>
+        <div class="panel" id="dd-tools" hidden>
+          <button class="it" data-open="reports">Global Reports</button>
+          <button class="it" data-soon="Dashboard">Dashboard</button>
+          <button class="it" data-soon="Client sharing">Client Sharing</button>
+          <button class="it" data-soon="Access control">Access Control</button><hr>
+          <button class="it" data-soon="Corporate actions (split, bonus, merger, dividend)">Corporate Actions</button>
+          <button class="it" data-soon="Global asset search">Global Asset Search</button>
+          <button class="it" data-soon="Auto-transfer of charges">Auto-transfer of Charges</button>
+          <button class="it" data-soon="F&O auto-settlement at expiry">F&amp;O Auto-settlement</button><hr>
+          <button class="it" data-soon="Reconcile holdings with demat statement">Reconcile Holdings</button>
+          <button class="it" data-soon="Portfolio cashflow tracking">Portfolio Cashflow Tracking</button>
+          <button class="it" data-soon="Goal and strategy tracking">Goal &amp; Strategy Tracking</button><hr>
+          <button class="it" data-soon="My tasks">My Tasks</button>
+          <button class="it" data-soon="Branding (add your logo to reports)">Branding (Add Your Logo)</button>
+        </div></div>
+      <button data-soon="Help centre">Help</button>
+      <div class="dd"><button data-dd="user" class="car"><span class="avatar">SP</span> Sagar</button>
+        <div class="panel" id="dd-user" hidden>
+          <button class="it" data-open="account">My Account</button>
+          <button class="it" data-soon="Preferences">Preferences</button>
+          <button class="it" data-soon="Sign out">Sign out</button>
+        </div></div>
+    </nav>
+  </div>
+</header>
+
+<div class="sub">
+  <div class="sub-in pad">
+    <div class="dd">
+      <button class="famBtn car" data-dd="fam" id="famBtn"></button>
+      <div class="panel left fampanel" id="dd-fam" hidden></div>
+    </div>
+    <div class="gsearch">
+      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="gsearch" placeholder="Search portfolios and families" aria-label="Search portfolios and families">
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="seg" role="group" aria-label="Book">
+      <button id="bInv" aria-pressed="true">INV</button>
+      <button id="bFno" aria-pressed="false">F&amp;O</button>
+    </div>
+    <div class="idx" id="idx"></div>
+    <label class="field">Show<select id="ptype"><option value="">All portfolios</option><option>Individual</option><option>HUF</option><option>Company</option></select></label>
+    <div class="plist" id="plist"></div>
+    <button class="addp" data-open="addp"><span class="plus">+</span>Add Portfolio</button>
+    <button class="reset" id="reset">Reset sample data</button>
+  </aside>
+  <main class="main pad" id="main"></main>
+</div>
+
+<dialog id="modal"></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const CLASSES=[
+  {k:'EQ',n:'Stocks & ETFs',c:'#1f6f5c',eq:1},
+  {k:'MFE',n:'Mutual Funds (Equity)',c:'#d9603a',code:'MF',eq:1},
+  {k:'MFD',n:'Mutual Funds (Debt)',c:'#e9b949',code:'MF'},
+  {k:'SIF',n:'SIF',c:'#a24d7a',eq:1},
+  {k:'BNK',n:'Banks',c:'#6b8f3a',ul:1},
+  {k:'ULP',n:'NPS / ULIP',c:'#3d7fa8',ul:1},
+  {k:'INS',n:'Insurance',c:'#7a6a55',ul:1},
+  {k:'PE',n:'Private Equity',c:'#4b4f9c'},
+  {k:'FD',n:'FDs',c:'#5b7fbf',ul:1},
+  {k:'CD',n:'Deposits / Loans',c:'#8a6bb8',ul:1},
+  {k:'PPF',n:'PPF / EPF',c:'#3a9bb0',ul:1},
+  {k:'GLD',n:'Gold',c:'#b58a2c'},
+];
+const C=Object.fromEntries(CLASSES.map(c=>[c.k,c]));
+const TODAY='2026-10-26';
+
+// Example data only. Not real family holdings.
+function seed(){
+  const h=(cls,name,ltp,prev,lots,sub)=>({cls,name,ltp,prev,sub,lots:lots.map(([d,q,p])=>({d,q,p}))});
+  return {log:[
+      {f:'kfintech_cas_oct26.pdf',t:'Mutual Fund CAS - KFintech',at:'25-Oct-2026 09:14',s:'Received by email · waiting for password',pend:1},
+      {f:'zerodha_cn_24oct.pdf',t:'Zerodha - Daily Email CN',at:'24-Oct-2026 18:02',s:'3 trades imported'},
+      {f:'cams_cas_sep26.pdf',t:'CAMS - Consolidated CAS',at:'08-Oct-2026 11:40',s:'14 transactions imported'},
+    ],
+    families:[
+    {id:'f1',name:'Mehra Family',recent:['p1','p2','p3'],portfolios:[
+      {id:'p1',name:'Rohan',type:'Individual',holdings:[
+        h('EQ','IDFC First Bank',72.40,71.10,[['2023-05-12',25,77.80]]),
+        h('EQ','HDFC Life Insurance',768.20,760.05,[['2022-08-03',20,542.53]]),
+        h('EQ','SBI Cards & Payment',891.55,884.00,[['2021-11-18',12,980.00],['2024-03-04',8,712.40]]),
+        h('EQ','Nippon India ETF Nifty Bank BeES',571.30,566.90,[['2023-01-09',40,394.50]],'ETF'),
+        h('EQ','Sula Vineyards',318.75,322.10,[['2026-02-14',10,505.00]]),
+        h('MFE','Parag Parikh Flexi Cap - Direct',92.14,91.60,[['2022-04-05',1820.4,54.93],['2024-09-10',640.2,78.10]]),
+        h('MFD','HDFC Corporate Bond - Direct',33.81,33.80,[['2023-06-21',7420.1,28.31]]),
+        h('BNK','HDFC Bank Savings ••4410',245600,245600,[['2026-04-01',1,245600]]),
+        h('ULP','NPS Tier I - SBI Pension',684300,681900,[['2020-04-01',1,250000],['2023-04-01',1,200000]]),
+        h('FD','SBI FD 7.10% (2027)',548200,548090,[['2024-04-15',1,500000]]),
+        h('PPF','PPF - SBI',1284500,1284500,[['2019-04-01',1,150000],['2020-04-01',1,150000],['2021-04-01',1,150000],['2022-04-01',1,150000],['2023-04-01',1,150000],['2024-04-01',1,150000]]),
+        h('GLD','SGB 2.50% 2031 Series II',12240,12188,[['2023-09-15',30,5923]]),
+      ]},
+      {id:'p2',name:'Rohan HUF',type:'HUF',holdings:[
+        h('EQ','Kesoram Industries',6.20,6.35,[['2022-10-21',100,54.70]]),
+        h('EQ','Ion Exchange India',548.90,540.20,[['2023-03-28',20,649.71]]),
+        h('EQ','Birla Corporation',1268.00,1251.40,[['2021-07-12',2,973.00]]),
+        h('MFE','Mirae Asset Large Cap - Direct',121.47,120.88,[['2021-02-11',3105.7,72.44]]),
+        h('CD','Loan to Kabir Traders @ 9%',612000,612000,[['2025-04-01',1,550000]]),
+      ]},
+      {id:'p3',name:'Meera',type:'Individual',holdings:[
+        h('EQ','Eternal',287.60,281.15,[['2023-07-19',25,183.00]]),
+        h('EQ','SBI ETF IT',41.92,41.30,[['2022-12-02',200,32.80]],'ETF'),
+        h('MFE','UTI Nifty 50 Index - Direct',176.30,175.10,[['2020-05-04',2240.6,82.20]]),
+        h('MFD','ICICI Pru Liquid - Direct',395.12,395.06,[['2026-01-08',505.9,384.45]]),
+        h('INS','LIC Jeevan Labh (surrender value)',318000,318000,[['2018-03-10',1,240000]]),
+        h('GLD','Physical Gold (24K, grams)',12510,12460,[['2019-10-20',40,3810]]),
+      ]},
+      {id:'p4',name:'Kabir Traders Pvt Ltd',type:'Company',holdings:[
+        h('EQ','UFO Moviez India',88.40,87.90,[['2022-06-15',162,105.55]]),
+        h('MFD','Aditya Birla Arbitrage - Direct',27.44,27.43,[['2025-08-01',36400.2,26.10]]),
+        h('PE','Unlisted: Neo Agro Foods (shares)',410,410,[['2024-11-02',500,300]]),
+        h('FD','HDFC Bank FD 7.25% (2026)',1052300,1052100,[['2025-12-20',1,1000000]]),
+      ]},
+    ],
+    fno:[
+      {id:'q1',name:'Rohan F&O (Zerodha)',charges:{'FY 2025-26':8410,'FY 2026-27':3120},trades:[
+        {sym:'NIFTY 28-OCT-26 25000 CE',k:'S',qty:-150,cost:142.5,ltp:98.2,real:0,fy:'FY 2026-27'},
+        {sym:'BANKNIFTY 25-NOV-26 FUT',k:'S',qty:35,cost:56120,ltp:56488,real:0,fy:'FY 2026-27'},
+        {sym:'NIFTY 29-SEP-26 24800 PE',k:'S',qty:0,cost:0,ltp:0,real:7828,fy:'FY 2026-27',exp:1},
+        {sym:'NIFTY 25-AUG-26 25200 CE',k:'S',qty:0,cost:0,ltp:0,real:-11573,fy:'FY 2026-27',exp:1},
+        {sym:'NIFTY 27-MAR-26 23500 PE',k:'S',qty:0,cost:0,ltp:0,real:14125,fy:'FY 2025-26',exp:1},
+        {sym:'NIFTY 26-FEB-26 23000 PE',k:'S',qty:0,cost:0,ltp:0,real:3783,fy:'FY 2025-26',exp:1},
+        {sym:'RELIANCE 30-DEC-25 FUT',k:'S',qty:0,cost:0,ltp:0,real:-4210,fy:'FY 2025-26',exp:1},
+        {sym:'USDINR 26-NOV-26 FUT',k:'OT',qty:1000,cost:88.42,ltp:88.61,real:0,fy:'FY 2026-27'},
+        {sym:'GOLDM 05-OCT-26 FUT',k:'OT',qty:0,cost:0,ltp:0,real:6150,fy:'FY 2026-27',exp:1},
+      ]},
+    ]},
+    {id:'f2',name:'Demo Family',recent:['d1'],portfolios:[
+      {id:'d1',name:'Demo Investor',type:'Individual',holdings:[
+        h('EQ','Infosys',1512.40,1498.00,[['2023-02-10',30,1420.00]]),
+        h('MFE','HDFC Flexi Cap - Direct',2110.50,2098.20,[['2022-11-01',120.4,1310.00]]),
+      ]},
+    ],fno:[]},
+  ]};
+}
+
+const KEY='foliolense-proto-v3';
+let db; try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!db||!db.families)db=seed();
+if(!db.favs)db.favs=['Zerodha - Daily Email CN','Groww - Nextbillion - Daily CN','ICICI Bank - Statement','Anand Rathi - Multi CN v2','Anand Rathi - Daily CN v2','Mutual Fund CAS - CAMSOnline','Zerodha EQ API','FolioLense Stock Opening Balances'];
+if(!db.brokers)db.brokers=['Zerodha','Groww','Anand Rathi','Dhan','Upstox'];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}};
+
+const st={fam:db.families[0].id,pid:'__all',fid:null,book:'inv',tab:'ALL',ftab:'S',period:'All to date',q:'',gq:'',ptype:'',open:{},closed:{},sort:{k:'cur',d:-1},
+  rcat:'Performance',rep:null,imp:'new',tpl:null,tview:'fav',wiz:null,vf:{cls:'',from:'',to:'',q:''},rper:'All dates'};
+const $=s=>document.querySelector(s);
+const fam=()=>db.families.find(f=>f.id===st.fam);
+const fmt=(n,d=2)=>(isFinite(n)?n:0).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=n=>(isFinite(n)?(n>=0?'+':'')+n.toFixed(2):'0.00')+'%';
+const cls=n=>n>0.004?'gain':n<-0.004?'loss':'';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const days=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const dmy=d=>{const [y,m,dd]=d.split('-');return dd+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+'-'+y};
+const short=v=>Math.abs(v)>=1e7?'₹'+(v/1e7).toFixed(2)+' Cr':Math.abs(v)>=1e5?'₹'+(v/1e5).toFixed(2)+' L':'₹'+fmt(v,0);
+const uid=()=>Math.random().toString(36).slice(2,8);
+
+function stats(h){
+  const qty=h.lots.reduce((s,l)=>s+l.q,0);
+  const inv=h.lots.reduce((s,l)=>s+l.q*l.p,0);
+  const ul=C[h.cls].ul;
+  const cur=ul?h.ltp:qty*h.ltp;
+  const today=ul?h.ltp-h.prev:qty*(h.ltp-h.prev);
+  const prevVal=cur-today;
+  return {qty,inv,avg:qty?inv/qty:0,cur,today,todayP:prevVal?today/prevVal*100:0,unrl:cur-inv,unrlP:inv?(cur-inv)/inv*100:0};
+}
+function tot(hs){return hs.reduce((a,h)=>{const s=stats(h);a.inv+=s.inv;a.cur+=s.cur;a.today+=s.today;return a},{inv:0,cur:0,today:0})}
+
+// XIRR by Newton's method with a bisection fallback
+function xirr(flows){
+  if(flows.length<2)return NaN;
+  flows=flows.slice().sort((a,b)=>a.d<b.d?-1:1);
+  const t0=new Date(flows[0].d);
+  const f=r=>flows.reduce((s,c)=>s+c.a/Math.pow(1+r,(new Date(c.d)-t0)/864e5/365),0);
+  let r=0.1;
+  for(let i=0;i<60;i++){
+    const v=f(r),dv=(f(r+1e-6)-v)/1e-6;
+    if(!isFinite(dv)||dv===0)break;
+    const n=r-v/dv; if(Math.abs(n-r)<1e-8)return n; r=n;
+    if(r<=-0.99)break;
+  }
+  let lo=-0.99,hi=10;
+  if(f(lo)*f(hi)>0)return NaN;
+  for(let i=0;i<200;i++){const m=(lo+hi)/2;(f(lo)*f(m)<=0)?hi=m:lo=m}
+  return (lo+hi)/2;
+}
+function xirrOf(hs){
+  const fl=hs.flatMap(h=>h.lots.map(l=>({d:l.d,a:-l.q*l.p})));
+  if(!fl.length)return NaN;
+  fl.push({d:TODAY,a:tot(hs).cur});
+  return xirr(fl)*100;
+}
+
+function viewHoldings(){
+  const F=fam();
+  if(st.pid!=='__all'){const p=F.portfolios.find(p=>p.id===st.pid);return p?p.holdings.map(h=>({...h,own:null})):[]}
+  const m={};
+  F.portfolios.forEach(p=>p.holdings.forEach(h=>{
+    const k=h.cls+'|'+h.name;
+    if(!m[k])m[k]={...h,lots:[],own:[]};
+    m[k].lots.push(...h.lots.map(l=>({...l,who:p.name})));m[k].own.push(p.name);
+  }));
+  return Object.values(m);
+}
+
+/* ---------- rendering ---------- */
+function renderTop(){
+  $('#famBtn').textContent=fam().name;
+  $('#idx').innerHTML=[['Sensex',81912.43,318.6],['Nifty 50',25104.10,109.1]].map(([n,v,c])=>
+    `<div><span class="nm">${n}</span><span class="num gain">${pct(c/(v-c)*100)}</span></div><div><span class="num">${fmt(v)}</span><span class="num gain">+${fmt(c)}</span></div>`).join('');
+}
+function renderFamPanel(){
+  const q=($('#famq')||{}).value||'';
+  const rows=db.families.flatMap(f=>[{f,p:null},...f.portfolios.map(p=>({f,p}))])
+    .filter(r=>!q||(r.f.name+' '+(r.p?r.p.name:'Family Group')).toLowerCase().includes(q.toLowerCase()));
+  $('#dd-fam').innerHTML=`
+    <div class="row"><button class="link" data-soon="Edit family name and members">✎ Edit Family</button><button class="link" id="addFamBtn">+ Add Family</button></div>
+    <form id="addFamForm" hidden style="display:flex;gap:6px"><input class="inp" id="newFam" placeholder="New family name" style="flex:1"><button class="btn primary">Add</button></form>
+    <label class="gsearch" style="margin:0;flex:none"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="famq" placeholder="Search families" value="${esc(q)}"></label>
+    <div class="it label" style="padding:4px 10px"><span>Family</span><span>Portfolio</span></div>
+    <div class="list">${rows.map(r=>`<button class="it" data-go="${r.f.id}|${r.p?r.p.id:'__all'}"><span>${esc(r.f.name)}</span><span class="mut">${r.p?esc(r.p.name):'Family Group'}</span></button>`).join('')||'<div class="it mut">No match</div>'}</div>`;
+}
+function renderRail(){
+  const F=fam(), q=st.gq.toLowerCase();
+  $('#bInv').setAttribute('aria-pressed',st.book==='inv');$('#bFno').setAttribute('aria-pressed',st.book==='fno');
+  $('#ptype').parentElement.hidden=st.book==='fno';
+  if(st.book==='fno'){
+    if(!st.fid&&F.fno.length)st.fid=F.fno[0].id;
+    $('#plist').innerHTML=F.fno.map(p=>`<button class="pbtn" data-fid="${p.id}" aria-current="${p.id===st.fid}"><span class="who"><span>${esc(p.name)}</span><small>F&amp;O</small></span></button>`).join('')||'<div class="mut" style="font-size:13px">No F&amp;O portfolio yet.</div>';
+    return;
+  }
+  const all={id:'__all',name:'Family Group',type:'All members'};
+  const list=[all,...F.portfolios.filter(p=>!st.ptype||p.type===st.ptype)].filter(p=>!q||p.name.toLowerCase().includes(q));
+  $('#plist').innerHTML=list.map(p=>{
+    const hs=p.id==='__all'?F.portfolios.flatMap(x=>x.holdings):p.holdings;
+    return `<button class="pbtn" data-p="${p.id}" aria-current="${p.id===st.pid}"><span class="who"><span>${esc(p.name)}</span><small>${esc(p.type)}</small></span><small class="num">${short(tot(hs).cur)}</small></button>`}).join('')||'<div class="mut">No match</div>';
+}
+
+function dd(id,label,inner,cls=''){return `<div class="dd"><button class="mb car" data-dd="${id}">${label}</button><div class="panel ${cls}" id="dd-${id}" hidden>${inner}</div></div>`}
+
+function renderMain(){
+  if(st.book==='fno')return renderFno();
+  const F=fam();
+  const p=F.portfolios.find(p=>p.id===st.pid);
+  const pname=p?p.name:'Family Group';
+  const all=viewHoldings();
+  const T=tot(all), xr=xirrOf(all);
+  const xirrRows=CLASSES.map(c=>({c,hs:all.filter(h=>h.cls===c.k)})).filter(r=>r.hs.length).map(r=>{const x=xirrOf(r.hs);return `<div class="it"><span>${r.c.n}</span><span class="num ${cls(x)}">${isFinite(x)?pct(x):'—'}</span></div>`}).join('');
+
+  const tabs=[{k:'ALL',n:'All assets',code:'ALL'},...CLASSES].map(c=>{
+    const n=c.k==='ALL'?all.length:all.filter(h=>h.cls===c.k).length;
+    return `<button class="tab" role="tab" data-tab="${c.k}" aria-selected="${st.tab===c.k}"><code>${c.code||c.k}</code>${c.n}${n?` <span class="n">${n}</span>`:''}</button>`}).join('');
+
+  $('#main').innerHTML=`
+    <div class="phead">
+      <span class="crumb">Portfolio:</span><h1>${esc(pname)}</h1>${p?`<span class="chip">${esc(p.type)}</span>`:`<span class="chip">${F.portfolios.length} portfolios combined</span>`}
+      <div class="actions">
+        <button class="ico" title="Search assets" id="focusSearch"><svg width="17" height="17" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        <button class="addc" title="Add a transaction" data-open="tx">+</button>
+        ${dd('xirr','XIRR',`<div class="hd label">Since first investment</div><div class="it"><b>${esc(pname)}</b><b class="num ${cls(xr)}">${isFinite(xr)?pct(xr):'—'}</b></div><hr>${xirrRows||'<div class="it mut">No holdings</div>'}<hr><div class="it"><span>Nifty 50 (same cash flows)</span><span class="num">+11.20%</span></div>`)}
+        ${dd('actions','Actions',`<button class="it" data-open="txns">View All Transactions</button><button class="it" data-open="tx">Add a transaction</button><button class="it" data-open="import">Import transactions</button><button class="it" data-open="addp">Add portfolio</button><hr><button class="it" data-soon="Rename portfolio">Rename portfolio</button><button class="it" data-soon="Move holdings to another portfolio">Move holdings</button><button class="it" data-soon="Export to Excel">Export to Excel</button>`)}
+        ${dd('prefs','Preferences',`<button class="it" data-soon="Show / hide columns">Columns to show</button><button class="it" data-soon="FIFO or average cost">Cost method: FIFO</button><button class="it" data-soon="Financial year start">Financial year: Apr–Mar</button>`)}
+        <button class="mb btn" style="border:0;background:none;font-weight:500" data-open="reports">Reports</button>
+        <div class="dd hov"><button class="anl" data-open="analytics" title="Analytics" aria-label="Open analytics"><svg width="20" height="18" viewBox="0 0 20 18"><path d="M2 16h16" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="9" width="2.6" height="6" fill="currentColor"/><rect x="7.5" y="6" width="2.6" height="9" fill="currentColor"/><rect x="12" y="3" width="2.6" height="12" fill="currentColor"/><path d="M3 7l5-4 4 3 5-4" stroke="var(--accent)" stroke-width="1.6" fill="none"/></svg></button>
+          <div class="panel anpanel hp" id="dd-anal">${analytics(all,T,xr)}</div></div>
+      </div>
+    </div>
+    <section class="summary" aria-label="Summary">
+      <div class="stat"><span class="label">Invested</span><span class="v num">₹${fmt(T.inv)}</span><span class="s mut">${all.length} holdings</span></div>
+      <div class="stat"><span class="label">Current value</span><span class="v num">₹${fmt(T.cur)}</span><span class="s mut">${short(T.cur)}</span></div>
+      <div class="stat"><span class="label">Today's gain</span><span class="v num ${cls(T.today)}">₹${fmt(T.today)}</span><span class="s num ${cls(T.today)}">${pct(T.today/(T.cur-T.today)*100)}</span></div>
+      <div class="stat"><span class="label">Unrealised gain</span><span class="v num ${cls(T.cur-T.inv)}">₹${fmt(T.cur-T.inv)}</span><span class="s num ${cls(T.cur-T.inv)}">${pct((T.cur-T.inv)/T.inv*100)}</span></div>
+      <div class="stat"><span class="label">XIRR</span><span class="v num ${cls(xr)}">${isFinite(xr)?pct(xr):'—'}</span><span class="s mut">annualised, since first buy</span></div>
+    </section>
+    <div class="tabsWrap"><button class="arr" data-scroll="-1" aria-label="Scroll tabs left">‹</button><div class="tabs" role="tablist" aria-label="Asset class" id="tabs">${tabs}</div><button class="arr" data-scroll="1" aria-label="Scroll tabs right">›</button></div>
+    <div class="tools">
+      <label class="asearch"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><input id="aq" placeholder="Search assets" value="${esc(st.q)}" aria-label="Search assets"></label>
+      <span class="label">Sample prices · as of 26 Oct 2026</span>
+    </div>
+    <div class="tbox">${table(all)}</div>`;
+  const tb=$('#tabs .tab[aria-selected="true"]');if(tb)tb.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+
+function donut(parts,total,half){
+  const r=40,cx=60,cy=half?58:60,L=Math.PI*r*(half?1:2);let off=0;
+  const segs=parts.map(p=>{const len=p.v/total*L;const s=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${p.c}" stroke-width="16" stroke-dasharray="${len} ${2*Math.PI*r}" stroke-dashoffset="${-off}" transform="rotate(${half?180:-90} ${cx} ${cy})"/>`;off+=len;return s}).join('');
+  return `<svg viewBox="0 0 120 ${half?70:120}" role="img"><circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="var(--surface-2)" stroke-width="16" ${half?`stroke-dasharray="${L} 999" transform="rotate(180 ${cx} ${cy})"`:''}/>${segs}</svg>`;
+}
+function analytics(all,T,xr){
+  const by=CLASSES.map(c=>({c:c.c,n:c.n,v:all.filter(h=>h.cls===c.k).reduce((s,h)=>s+stats(h).cur,0)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const eqParts=[
+    {n:'Direct stocks',c:'#1f6f5c',v:all.filter(h=>h.cls==='EQ'&&h.sub!=='ETF').reduce((s,h)=>s+stats(h).cur,0)},
+    {n:'ETFs',c:'#3a9bb0',v:all.filter(h=>h.cls==='EQ'&&h.sub==='ETF').reduce((s,h)=>s+stats(h).cur,0)},
+    {n:'Equity mutual funds',c:'#d9603a',v:all.filter(h=>h.cls==='MFE').reduce((s,h)=>s+stats(h).cur,0)},
+    {n:'SIF',c:'#a24d7a',v:all.filter(h=>h.cls==='SIF').reduce((s,h)=>s+stats(h).cur,0)},
+  ].filter(x=>x.v>0);
+  const eqT=eqParts.reduce((s,x)=>s+x.v,0);
+  const nifty=11.2, mx=Math.max(Math.abs(xr)||0,nifty,1);
+  const bar=(lab,v,c)=>`<div style="display:grid;gap:3px"><span style="display:flex;justify-content:space-between;gap:8px;font-size:11px"><span class="mut">${lab}</span><b class="num">${isFinite(v)?pct(v):'—'}</b></span><span style="height:9px;border-radius:4px;background:var(--surface-2);display:block"><span style="display:block;height:100%;width:${Math.max(2,Math.abs(v||0)/mx*100)}%;background:${c};border-radius:4px"></span></span></div>`;
+  return `
+    <button class="acard" data-anal="hold"><span class="label">Asset allocation</span>${by.length?donut(by,T.cur,true):''}<div class="mini">${by.slice(0,5).map(x=>`<span><span><i style="background:${x.c}"></i>${x.n}</span><b class="num">${(x.v/T.cur*100).toFixed(1)}%</b></span>`).join('')}</div><h4>Holdings</h4><span class="go">Open report →</span></button>
+    <button class="acard" data-anal="perf"><span class="label">XIRR vs benchmark</span><div style="display:grid;gap:10px;padding-top:6px">${bar('This portfolio',xr,'var(--accent)')}${bar('Nifty 50 (same cash flows)',nifty,'var(--brand-muted)')}</div><p class="mut" style="font-size:11px;margin:0">Benchmark figure is a sample value.</p><h4>Performance</h4><span class="go">Open report →</span></button>
+    <button class="acard" data-anal="eq"><span class="label">Equity exposure</span>${eqT?donut(eqParts,eqT,false):''}<div class="mini">${eqParts.map(x=>`<span><span><i style="background:${x.c}"></i>${x.n}</span><b class="num">${(x.v/eqT*100).toFixed(1)}%</b></span>`).join('')}</div><h4>Equity Exposure</h4><span class="go">Open report →</span></button>`;
+}
+
+function th(k,a,b){const on=st.sort.k===k;return `<th><button data-sort="${k}"${on?' data-on':''}>${a}${b?'<br><span class="'+(k==='qty'?'sub2':'')+'">'+b+'</span>':''}${on?(st.sort.d>0?' ↑':' ↓'):''}</button></th>`}
+function two(v,p){return `<div class="two ${cls(v)}"><span class="num">${fmt(v)}</span><small class="num">${pct(p)}</small></div>`}
+function table(all){
+  const q=st.q.toLowerCase();
+  let rows=all.filter(h=>(st.tab==='ALL'||h.cls===st.tab)&&(!q||h.name.toLowerCase().includes(q))).map(h=>({h,s:stats(h)}));
+  if(!rows.length)return `<div class="empty">${st.q?'No assets match that search.':'Nothing in '+(st.tab==='ALL'?'this portfolio':C[st.tab].n)+' yet.'}<button class="addp" data-open="tx"><span class="plus">+</span>Add a transaction</button></div>`;
+  const key={name:r=>r.h.name.toLowerCase(),qty:r=>r.s.qty,inv:r=>r.s.inv,ltp:r=>r.h.ltp,today:r=>r.s.today,unrl:r=>r.s.unrl,cur:r=>r.s.cur}[st.sort.k];
+  rows.sort((a,b)=>{const x=key(a),y=key(b);return (x<y?-1:x>y?1:0)*st.sort.d});
+  let body='';const T={inv:0,cur:0,today:0};
+  CLASSES.filter(c=>rows.some(r=>r.h.cls===c.k)).forEach(c=>{
+    const gr=rows.filter(r=>r.h.cls===c.k), g=tot(gr.map(r=>r.h));
+    T.inv+=g.inv;T.cur+=g.cur;T.today+=g.today;
+    const closed=st.closed[c.k];
+    body+=`<tr class="grp"><td><button data-grp="${c.k}" aria-expanded="${!closed}"><span class="caret">▸</span><code class="gcode">${c.code||c.k}</code>${c.n} <span class="chip">${gr.length}</span></button></td><td></td>
+      <td class="num">${fmt(g.inv)}</td><td></td><td>${two(g.today,g.today/(g.cur-g.today)*100)}</td><td>${two(g.cur-g.inv,(g.cur-g.inv)/g.inv*100)}</td><td class="num">${fmt(g.cur)}</td></tr>`;
+    if(closed)return;
+    gr.forEach(({h,s})=>{
+      const id=h.cls+'|'+h.name, open=st.open[id], ul=C[h.cls].ul;
+      body+=`<tr class="row${open?' open':''}"><td><div class="nm"><button data-row="${esc(id)}" aria-expanded="${!!open}"><span class="caret">▸</span><span>${esc(h.name)}${h.own&&h.own.length>1?` <span class="own">· ${h.own.length} members</span>`:h.own?` <span class="own">· ${esc(h.own[0])}</span>`:''}</span></button></div></td>
+        <td>${ul?'<span class="mut">—</span>':`<div class="two q"><span class="num">${fmt(s.qty,s.qty%1?3:0)}</span><small class="num">${fmt(s.avg)}</small></div>`}</td>
+        <td class="num">${fmt(s.inv)}</td><td class="num">${ul?'—':fmt(h.ltp)}</td>
+        <td>${two(s.today,s.todayP)}</td><td>${two(s.unrl,s.unrlP)}</td><td class="num">${fmt(s.cur)}</td></tr>`;
+      if(open)h.lots.slice().sort((a,b)=>a.d<b.d?-1:1).forEach(l=>{
+        const d=days(l.d,TODAY), lt=d>(C[h.cls].eq?365:730);
+        body+=`<tr class="lot"><td>${dmy(l.d)}${l.who?' · '+esc(l.who):''} · ${lt?'Long term':'Short term'} (${d} days)</td><td class="num">${ul?'—':fmt(l.q,l.q%1?3:0)}</td><td class="num">${fmt(l.q*l.p)}</td><td class="num">${ul?'':'@ '+fmt(l.p)}</td><td></td><td></td><td></td></tr>`;
+      });
+    });
+  });
+  return `<table><thead><tr>${th('name','Asset')}${th('qty','Qty.','Avg. pur. price')}${th('inv','Amt.','Invested')}${th('ltp','Current','Price')}${th('today',"Today's",'Gain')}${th('unrl','Unrealised','Gain')}${th('cur','Current','Value')}</tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr><td>NET WORTH</td><td></td><td class="num">${fmt(T.inv)}</td><td></td><td>${two(T.today,T.today/(T.cur-T.today)*100)}</td><td>${two(T.cur-T.inv,(T.cur-T.inv)/T.inv*100)}</td><td class="num">${fmt(T.cur)}</td></tr></tfoot></table>`;
+}
+
+/* F&O */
+const PERIODS=['All to date','FY 2026-27','FY 2025-26'];
+function renderFno(){
+  const F=fam(), P=F.fno.find(p=>p.id===st.fid);
+  if(!P){$('#main').innerHTML=`<div class="phead"><span class="crumb">F&amp;O Portfolio</span></div><div class="tbox"><div class="empty">No F&amp;O portfolio in ${esc(F.name)}.<button class="addp" data-open="addp"><span class="plus">+</span>Add Portfolio</button></div></div>`;return}
+  const inP=t=>st.period==='All to date'||t.fy===st.period||t.qty!==0;
+  const xs=P.trades.filter(t=>t.k===st.ftab&&inP(t));
+  const un=t=>t.qty?(t.ltp-t.cost)*t.qty:0;
+  const S={mtm:0,un:0,re:0};xs.forEach(t=>{S.mtm+=t.qty*t.ltp;S.un+=un(t);S.re+=t.real});
+  const chg=st.period==='All to date'?Object.values(P.charges).reduce((a,b)=>a+b,0):(P.charges[st.period]||0);
+  const n0=v=>`<span class="num ${cls(v)}">${fmt(v,0)}</span>`;
+  $('#main').innerHTML=`
+    <div class="phead"><span class="crumb">F&amp;O Portfolio:</span><h1>${esc(P.name)}</h1>
+      <div class="actions"><button class="addc" title="Add a trade" data-soon="Add F&O trade">+</button>
+      ${dd('factions','Actions',`<button class="it" data-open="import">Import contract notes</button><button class="it" data-soon="Auto-settle expired contracts">Settle expired contracts</button>`)}
+      ${dd('fprefs','Preferences',`<button class="it" data-soon="Show charges per trade">Show charges per trade</button>`)}
+      <button class="mb btn" style="border:0;background:none;font-weight:500" data-open="reports">Reports</button></div></div>
+    <section class="summary" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="stat"><span class="label">Unrealised P/L</span><span class="v num ${cls(S.un)}">₹${fmt(S.un,0)}</span></div>
+      <div class="stat"><span class="label">Realised P/L</span><span class="v num ${cls(S.re)}">₹${fmt(S.re,0)}</span></div>
+      <div class="stat"><span class="label">Charges (GST, STT, others)</span><span class="v num loss">₹${fmt(-chg,0)}</span></div>
+      <div class="stat"><span class="label">Net profit / loss</span><span class="v num ${cls(S.un+S.re-chg)}">₹${fmt(S.un+S.re-chg,0)}</span></div>
+    </section>
+    <div class="tools" style="justify-content:space-between">
+      <div class="tabsWrap" style="flex:0 1 auto"><div class="tabs">${[['S','Stock F&amp;O'],['OT','Other F&amp;O']].map(([k,n])=>`<button class="tab" data-ftab="${k}" aria-selected="${st.ftab===k}"><code>${k}</code>${n}</button>`).join('')}</div></div>
+      ${dd('period','Period: '+st.period,PERIODS.map(p=>`<button class="it" data-period="${p}">${p}${p===st.period?' ✓':''}</button>`).join(''))}
+    </div>
+    <div class="tbox">${xs.length?`<table><thead><tr><th>Instrument</th><th>Qty.<br><span class="sub2">Cost/unit</span></th><th>Current<br>Price</th><th>Mark to<br>Market</th><th>Unrealised<br>P / L</th><th>Realised<br>P / L</th><th>Total<br>P / L</th></tr></thead><tbody>
+    ${xs.map(t=>`<tr class="row"><td>${t.exp?'<span class="xp" title="Expired">E</span> ':'<span class="xp" style="color:var(--gain)" title="Open">O</span> '}${esc(t.sym)}</td>
+      <td><div class="two q"><span class="num">${fmt(t.qty,0)}</span><small class="num">${fmt(t.cost)}</small></div></td><td class="num">${fmt(t.ltp)}</td><td class="num">${fmt(t.qty*t.ltp,0)}</td>
+      <td>${n0(un(t))}</td><td>${n0(t.real)}</td><td>${n0(un(t)+t.real)}</td></tr>`).join('')}
+    </tbody><tfoot><tr class="chg"><td colspan="6">Less total charges (GST, STT, stamp duty, exchange)</td><td class="num loss">${fmt(-chg,0)}</td></tr>
+    <tr><td>Total Profit / Loss</td><td></td><td></td><td class="num">${fmt(S.mtm,0)}</td><td>${n0(S.un)}</td><td>${n0(S.re)}</td><td>${n0(S.un+S.re-chg)}</td></tr></tfoot></table>`
+    :`<div class="empty">No ${st.ftab==='S'?'stock':'other'} F&amp;O trades in ${st.period}.</div>`}</div>`;
+}
+
+function render(){renderTop();renderRail();renderMain()}
+
+/* ---------- modals ---------- */
+const M=$('#modal');
+function openModal(kind){
+  closeDD();
+  M.className=kind==='tx'||kind==='addp'||kind==='account'?'small':'wide';
+  if(kind==='import'){st.wiz=null;st.imp='new'}
+  ({tx:mTx,addp:mAddp,account:mAccount,import:mImport,reports:mReports,analytics:mAnalytics,txns:mTxns})[kind]();
+  if(!M.open)M.showModal();
+}
+function head(left,extra){return `<div class="mhead">${left}${extra||''}<button class="x" data-close aria-label="Close">✕</button></div>`}
+
+function mAnalytics(){
+  const F=fam(), all=viewHoldings(), T=tot(all), xr=xirrOf(all);
+  const pn=st.pid==='__all'?'Family Group':(F.portfolios.find(p=>p.id===st.pid)||{}).name;
+  const rows=CLASSES.map(c=>({c,hs:all.filter(h=>h.cls===c.k)})).filter(r=>r.hs.length).map(r=>({...r,t:tot(r.hs),x:xirrOf(r.hs)})).sort((a,b)=>b.t.cur-a.t.cur);
+  M.innerHTML=head(`<div class="grow" style="font-family:var(--f-display);font-weight:700;font-size:17px">Analytics</div>`,
+    `<div class="mut" style="font-size:13px">Family: <b style="color:var(--ink);margin-left:4px">${esc(F.name)}</b></div><div class="mut" style="font-size:13px">Portfolio: <b style="color:var(--ink);margin-left:4px">${esc(pn)}</b></div>`)+
+  `<div class="mbody"><div class="anfull">
+    <div class="anpanel">${analytics(all,T,xr)}</div>
+    <div class="tbox" style="max-height:none"><table><thead><tr><th>Asset class</th><th>Invested</th><th>Current value</th><th>Share</th><th>Gain</th><th>XIRR</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr class="row"><td><span class="gcode" style="border-color:${r.c.c};color:${r.c.c}">${r.c.code||r.c.k}</span> ${r.c.n}</td><td class="num">${fmt(r.t.inv)}</td><td class="num">${fmt(r.t.cur)}</td><td class="num">${(r.t.cur/T.cur*100).toFixed(1)}%</td><td class="num ${cls(r.t.cur-r.t.inv)}">${fmt(r.t.cur-r.t.inv)}</td><td class="num ${cls(r.x)}">${isFinite(r.x)?pct(r.x):'—'}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td>Total</td><td class="num">${fmt(T.inv)}</td><td class="num">${fmt(T.cur)}</td><td class="num">100%</td><td class="num ${cls(T.cur-T.inv)}">${fmt(T.cur-T.inv)}</td><td class="num ${cls(xr)}">${isFinite(xr)?pct(xr):'—'}</td></tr></tfoot></table></div>
+  </div></div>`;
+}
+
+function mAccount(){
+  M.innerHTML=head(`<div class="grow"><h2 style="margin:0;font-family:var(--f-display);font-size:18px">My Account</h2></div>`)+`<div class="dlg"><dl class="acct">
+    <dt>Email</dt><dd>sagar@example.com <span class="chip">sample</span></dd>
+    <dt>Display name</dt><dd>Sagar <button class="link" data-soon="Edit display name">✎</button></dd>
+    <dt>Plan</dt><dd>Family Pro <span class="chip" style="background:var(--accent-soft);color:var(--accent)">Active</span></dd>
+    <dt>Add-on packs</dt><dd>F&amp;O, Tax reports</dd>
+    <dt>Renews on</dt><dd>05-Nov-2027</dd>
+    <dt>Users</dt><dd class="num">1 / 2</dd>
+    <dt>Portfolios</dt><dd class="num">${db.families.reduce((s,f)=>s+f.portfolios.length+f.fno.length,0)} / 25</dd>
+    <dt>Manage plan</dt><dd><button class="btn dark" data-soon="Plans and billing (Razorpay)">Manage plan</button></dd>
+    <dt>Password</dt><dd><button class="btn dark" data-soon="Change password">Change password</button></dd>
+    <dt>2-factor login</dt><dd><button class="btn dark" data-soon="Enable 2-factor authentication">Turn on</button></dd>
+    <dt>Mobile app</dt><dd><button class="btn" data-soon="Disconnect mobile device">Disconnect device</button></dd>
+  </dl></div>`;
+}
+
+function mAddp(){
+  M.innerHTML=`<form class="dlg" id="addpForm"><h2>Add portfolio</h2>
+    <label class="field">Name<input id="apN" placeholder="e.g. Meera HUF" autocomplete="off"></label>
+    <div class="grid2"><label class="field">Book<select id="apB"><option value="inv">Investments</option><option value="fno"${st.book==='fno'?' selected':''}>F&amp;O</option></select></label>
+    <label class="field">Type<select id="apT"><option>Individual</option><option>HUF</option><option>Company</option></select></label></div>
+    <div class="err" id="apErr"></div>
+    <div class="row-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Add portfolio</button></div></form>`;
+  setTimeout(()=>$('#apN')?.focus());
+}
+
+function mTx(){
+  const F=fam();
+  if(!F.portfolios.length){toast('Add a portfolio first');return}
+  M.innerHTML=`<form class="dlg" id="txForm"><h2>Add a transaction</h2>
+    <div class="grid2"><label class="field">Portfolio<select id="txP">${F.portfolios.map(p=>`<option value="${p.id}"${p.id===st.pid?' selected':''}>${esc(p.name)}</option>`).join('')}</select></label>
+    <label class="field">Asset class<select id="txC">${CLASSES.map(c=>`<option value="${c.k}"${c.k===(st.tab==='ALL'?'EQ':st.tab)?' selected':''}>${c.n}</option>`).join('')}</select></label></div>
+    <label class="field">Asset name<input id="txN" list="txList" placeholder="e.g. HDFC Bank" autocomplete="off"></label><datalist id="txList"></datalist>
+    <div class="grid2">
+      <label class="field">Type<select id="txT"><option value="buy">Buy / deposit</option><option value="sell">Sell / withdraw</option></select></label>
+      <label class="field">Date<input id="txD" type="date" value="${TODAY}"></label>
+      <label class="field" id="qtyWrap">Quantity<input id="txQ" type="number" step="any" min="0"></label>
+      <label class="field"><span id="rLab">Price (₹)</span><input id="txR" type="number" step="any" min="0"></label>
+      <label class="field">Current price / value (₹)<input id="txL" type="number" step="any" min="0" placeholder="Keep existing"></label>
+    </div>
+    <div class="err" id="txErr"></div>
+    <div class="row-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Save</button></div></form>`;
+  syncTx();setTimeout(()=>$('#txN')?.focus());
+}
+function syncTx(){
+  const ul=C[$('#txC').value].ul;
+  $('#qtyWrap').hidden=!!ul;$('#rLab').textContent=ul?'Amount (₹)':'Price (₹)';
+  const p=fam().portfolios.find(p=>p.id===$('#txP').value);
+  $('#txList').innerHTML=p.holdings.filter(h=>h.cls===$('#txC').value).map(h=>`<option value="${esc(h.name)}">`).join('');
+}
+function saveTx(){
+  const p=fam().portfolios.find(p=>p.id===$('#txP').value), c=$('#txC').value, ul=C[c].ul;
+  const name=$('#txN').value.trim(), q=ul?1:+$('#txQ').value, r=+$('#txR').value, d=$('#txD').value, ltp=$('#txL').value, sell=$('#txT').value==='sell';
+  const err=m=>{$('#txErr').textContent=m};
+  if(!name)return err('Enter the asset name.');
+  if(!(q>0))return err('Enter a quantity above zero.');
+  if(!(r>0))return err(ul?'Enter the amount.':'Enter the price per unit.');
+  if(!d)return err('Pick the transaction date.');
+  let h=p.holdings.find(x=>x.cls===c&&x.name.toLowerCase()===name.toLowerCase());
+  if(sell){
+    if(!h)return err('There is no holding with that name to sell.');
+    if(ul){ // withdraw an amount from a deposit-type holding
+      if(r>h.ltp+1e-6)return err('Value is only ₹'+fmt(h.ltp)+'.');
+      const share=r/h.ltp; h.lots.forEach(l=>l.p*=1-share); h.ltp-=r; h.prev-=r;
+      if(h.ltp<1)p.holdings.splice(p.holdings.indexOf(h),1);
+    }else{
+      const have=h.lots.reduce((s,l)=>s+l.q,0);
+      if(q>have+1e-9)return err('You hold only '+fmt(have,3)+' units.');
+      // FIFO: oldest lots go first
+      let left=q;h.lots.sort((a,b)=>a.d<b.d?-1:1);
+      while(left>1e-9&&h.lots.length){const l=h.lots[0];if(l.q<=left+1e-9){left-=l.q;h.lots.shift()}else{l.q-=left;left=0}}
+      if(!h.lots.length)p.holdings.splice(p.holdings.indexOf(h),1);else if(ltp)h.ltp=+ltp;
+    }
+    save();M.close();st.pid=p.id;render();toast(ul?'Withdrawal recorded':'Sale recorded against oldest lots first');return;
+  }
+  if(!h){const cur=ltp?+ltp:r;h={cls:c,name,ltp:cur,prev:cur,lots:[]};p.holdings.push(h)}
+  else if(ltp)h.ltp=+ltp;
+  else if(ul){h.ltp+=r;h.prev+=r}
+  h.lots.push({d,q,p:r});
+  save();M.close();st.pid=p.id;render();toast('Saved to '+p.name);
+}
+
+/* import */
+const TEMPLATES=[
+  {n:'Zerodha - Daily Email CN',auto:1,t:'EQ',f:'PDF',broker:'Zerodha'},
+  {n:'Zerodha - Multi CN',auto:0,t:'F&O',f:'PDF',broker:'Zerodha'},
+  {n:'Zerodha - Tradebook',auto:0,t:'EQ',f:'CSV',broker:'Zerodha'},
+  {n:'Zerodha EQ API',auto:0,t:'EQ',f:'API',broker:'Zerodha'},
+  {n:'Groww - Nextbillion - Daily CN',auto:1,t:'EQ',f:'PDF',broker:'Groww'},
+  {n:'Anand Rathi - Daily CN v2',auto:1,t:'F&O',f:'PDF',broker:'Anand Rathi'},
+  {n:'Anand Rathi - Multi CN v2',auto:1,t:'EQ',f:'PDF',broker:'Anand Rathi'},
+  {n:'Dhan API',auto:0,t:'F&O',f:'API',broker:'Dhan'},
+  {n:'Mutual Fund CAS - CAMSOnline',auto:1,t:'MF',f:'PDF',pw:1,help:'https://www.camsonline.com/Investors/Statements/Consolidated-Account-Statement'},
+  {n:'Mutual Fund CAS - KFintech',auto:1,t:'MF',f:'PDF',pw:1,help:'https://mfs.kfintech.com/investor/General/ConsolidatedAccountStatement'},
+  {n:'NSDL e-CAS',auto:1,t:'EQ',f:'PDF',pw:1},
+  {n:'CDSL e-CAS',auto:1,t:'EQ',f:'PDF',pw:1},
+  {n:'ICICI Bank - Statement',auto:1,t:'Bank',f:'PDF',pw:1},
+  {n:'HDFC Bank - Statement',auto:1,t:'Bank',f:'PDF',pw:1},
+  {n:'FolioLense Stock Opening Balances',auto:0,t:'EQ',f:'Excel'},
+];
+const TPL=n=>TEMPLATES.find(t=>t.n===n)||TEMPLATES[0];
+const nowStamp=()=>{const n=new Date();return n.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')+' '+n.toTimeString().slice(0,5)};
+const search14='<svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+function mImport(){
+  if(!st.tpl)st.tpl=db.favs[0]||TEMPLATES[0].n;
+  const q=(($('#tplq')||{}).value||'').toLowerCase();
+  const base=st.tview==='fav'?TEMPLATES.filter(t=>db.favs.includes(t.n)):TEMPLATES;
+  const list=base.filter(t=>!q||(t.n+' '+t.t+' '+t.f).toLowerCase().includes(q));
+  const pending=db.log.filter(l=>l.pend).length;
+  const wideR=st.wiz&&(st.wiz.step==='review'||st.wiz.step==='done');
+  M.innerHTML=head(`<div class="grow"><button class="link" data-soon="Build a new import template">+ Add a new import template</button></div>`,
+    `<button class="tabb" data-tview="${st.tview==='fav'?'all':'fav'}" aria-pressed="${st.tview==='all'}" style="padding:0 16px;gap:6px">${st.tview==='fav'?search14+' All templates':'★ Favourites'}</button>
+     <button class="tabb" data-imp="${st.imp==='log'?'new':'log'}" aria-pressed="${st.imp==='log'}" style="padding:0 24px">Import Log${pending?`<span class="badge">${pending}</span>`:''}</button>
+     <button class="tabb" data-soon="Import tools: your auto-import email address, saved broker and asset mappings" style="padding:0 18px">Tools</button>`)+
+  `<div class="mbody imp${wideR?' wide-r':''}"><div class="lst">
+     <div class="srch"><label class="asearch" style="flex:1">${search14}<input id="tplq" placeholder="${st.tview==='fav'?'Search favourites':'Search all templates: broker, bank, CAS'}" value="${esc(q)}"></label></div>
+     <div style="overflow:auto"><table><thead><tr><th>Name</th><th>Auto import</th><th>Type</th><th>Format</th><th></th></tr></thead><tbody>
+     ${list.map(t=>{const fav=db.favs.includes(t.n);return `<tr class="trow${t.n===st.tpl?' on':''}" data-tpl="${esc(t.n)}"><td><input type="radio" name="tpl" ${t.n===st.tpl?'checked':''} aria-label="${esc(t.n)}"> ${esc(t.n)}</td><td>${t.auto?'<span title="Forward the email and it imports itself">✈︎</span>':''}</td><td>${t.t}</td><td><span class="fmt ${t.f}">${t.f}</span></td><td><button class="star" data-fav="${esc(t.n)}" title="${fav?'Remove from favourites':'Add to favourites'}" aria-label="${fav?'Remove from favourites':'Add to favourites'}">${fav?'★':'☆'}</button></td></tr>`}).join('')
+       ||`<tr><td colspan="5" class="mut" style="white-space:normal">${st.tview==='fav'?'No favourites match. Open <b>All templates</b> and tap ☆ to add one.':'No template matches.'}</td></tr>`}
+     </tbody></table></div></div>
+     <div class="rpane">${rightPane()}</div></div>`;
+}
+
+function rightPane(){
+  if(st.imp==='log')return `<div style="display:flex;justify-content:space-between;align-items:center"><b>Import log</b><button class="btn" data-imp="new">New import</button></div>
+    <div class="log">${db.log.map((l,i)=>`<div><b>${esc(l.f)}</b><span class="mut">${esc(l.t)} · ${l.at}</span><span>${esc(l.s)}</span>${l.pend?`<span><button class="btn primary" data-pend="${i}">Enter password</button></span>`:''}</div>`).join('')||'<span class="mut">Nothing imported yet.</span>'}</div>`;
+  if(st.wiz)return wizard();
+  const T=TPL(st.tpl), fav=db.favs.includes(T.n);
+  return `<b>New Import</b>
+    <span class="mut" style="font-size:13px">Template: <b style="color:var(--ink)">${esc(T.n)}</b> ${fav?'':`<button class="link" data-fav="${esc(T.n)}">☆ Add to favourites</button>`}</span>
+    ${T.help?`<a href="${T.help}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px">How do I request my CAS statement? ↗</a>`:''}
+    <label class="drop" id="drop"><svg width="54" height="46" viewBox="0 0 54 46" aria-hidden="true"><rect x="6" y="4" width="34" height="30" rx="3" fill="var(--surface)" stroke="var(--brand-muted)" stroke-width="2"/><circle cx="16" cy="14" r="4" fill="var(--brand-muted)"/><path d="M8 32l10-10 8 8 6-5 8 7" fill="none" stroke="var(--brand-muted)" stroke-width="2"/><circle cx="42" cy="34" r="10" fill="var(--brand)"/><path d="M42 39v-10M37.5 33l4.5-4.5 4.5 4.5" stroke="var(--brand-ink)" stroke-width="2" fill="none"/></svg>
+      <span class="btn">Upload File</span><span class="mut" style="font-size:13px">or drop files to upload</span><input type="file" id="file" hidden accept=".pdf,.csv,.xls,.xlsx"></label>
+    <span class="mut" style="font-size:12px">${T.auto?'Auto import: forward this email from your registered address and it lands in the Import Log.':'Upload only.'}</span>`;
+}
+
+/* Import wizard: Password → Family & portfolio → Broker → Review → Done (same order as MProfit) */
+function wizSteps(w){const T=TPL(w.tpl);return [T.pw&&['pw','Password'],['map','Family & portfolio'],T.broker&&['broker','Broker'],['review','Review'],['done','Done']].filter(Boolean)}
+function startWiz(fname,tplName,logIdx){
+  const T=TPL(tplName), F=fam();
+  const ps=T.t==='F&O'?F.fno:F.portfolios;
+  st.wiz={file:fname,tpl:T.n,step:T.pw?'pw':'map',fam:F.id,pid:(ps.find(p=>p.id===(T.t==='F&O'?st.fid:st.pid))||ps[0]||{}).id,broker:T.broker||'',rows:null,logIdx};
+  st.imp='new';st.tpl=T.n;mImport();
+}
+function wizard(){
+  const w=st.wiz, T=TPL(w.tpl), steps=wizSteps(w), at=steps.findIndex(s=>s[0]===w.step);
+  const bar=`<div class="steps">${steps.map((s,i)=>`<span class="${i<at?'done':i===at?'on':''}">${i<at?'✓ ':''}${s[1]}</span>`).join('')}</div>
+    <span class="mut" style="font-size:13px">File: <b style="color:var(--ink)">${esc(w.file)}</b> · ${esc(T.n)}</span>`;
+  const back=at>0&&w.step!=='done'?`<button type="button" class="btn" data-wzback>Back</button>`:`<button type="button" class="btn" data-wzcancel>Cancel</button>`;
+  let body='';
+  if(w.step==='pw')body=`<form class="wz" id="wzPw"><b>This file is password protected</b>
+      <label class="field">Password<input id="wzPass" type="password" autocomplete="off"></label>
+      <span class="mut" style="font-size:12px">${T.t==='MF'?'Use the password you set when requesting the CAS.':T.t==='Bank'?'Usually set by the bank, often part of your customer ID or date of birth.':'For e-CAS this is usually your PAN in capitals.'}</span>
+      <div class="err" id="wzErr"></div><div class="row-end">${back}<button class="btn primary">Save</button></div></form>`;
+  if(w.step==='map'){
+    const F=db.families.find(f=>f.id===w.fam), ps=T.t==='F&O'?F.fno:F.portfolios;
+    body=`<form class="wz" id="wzMap"><b>Which family and portfolio is this file for?</b>
+      <div class="grid2"><label class="field">Family<select id="wzFam">${db.families.map(f=>`<option value="${f.id}"${f.id===w.fam?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>
+      <label class="field">${T.t==='F&O'?'F&amp;O portfolio':'Portfolio'}<select id="wzP">${ps.map(p=>`<option value="${p.id}"${p.id===w.pid?' selected':''}>${esc(p.name)}</option>`).join('')||'<option value="">No portfolio, add one first</option>'}</select></label></div>
+      <div class="err" id="wzErr"></div><div class="row-end">${back}<button class="btn primary">Save</button></div></form>`;
+  }
+  if(w.step==='broker')body=`<form class="wz" id="wzBr"><b>Map the broker in this file</b>
+      <span class="mut" style="font-size:13px">Found in file: <b style="color:var(--ink)">${esc(T.broker)}</b>. You do this once; next time it is remembered.</span>
+      <div style="display:flex;gap:8px;align-items:end"><label class="field" style="flex:1">Broker<select id="wzB">${db.brokers.map(b=>`<option${b===w.broker?' selected':''}>${esc(b)}</option>`).join('')}</select></label><button type="button" class="addc" title="Add a broker" data-addbroker>+</button></div>
+      <div id="newBr" hidden style="display:flex;gap:6px"><input class="inp" id="wzNewB" placeholder="New broker name" style="flex:1"><button type="button" class="btn" data-savebroker>Add</button></div>
+      <div class="err" id="wzErr"></div><div class="row-end">${back}<button class="btn primary">Save &amp; continue</button></div></form>`;
+  if(w.step==='review'){
+    if(!w.rows)w.rows=genRows(w);
+    const c=s=>w.rows.filter(r=>r.status===s).length;
+    const cands=cl=>{const p=targetP(w);return p&&p.holdings?p.holdings.filter(h=>h.cls===cl).map(h=>h.name):[]};
+    body=`<form class="wz rv" id="wzRev"><b>Check the transactions, then confirm</b>
+      <div class="steps"><span class="st-chip st-Mapped">${c('Mapped')} Mapped</span><span class="st-chip st-Map">${c('Map')} need mapping</span><span class="st-chip st-Fully">${c('Fully Assigned')} already imported</span></div>
+      <div class="tbox" style="max-height:300px"><table><thead><tr><th>Status</th><th>Date</th><th>Asset</th><th>Type</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>
+      ${w.rows.map((r,i)=>`<tr class="row${r.status==='Fully Assigned'?' dup':''}"><td><span class="st-chip st-${r.status.split(' ')[0]}">${r.status}</span></td><td>${dmy(r.d)}</td>
+        <td style="white-space:normal">${esc(r.name)}${r.isNew&&r.status==='Mapped'?' <span class="chip">new asset</span>':''}${r.status==='Map'?`<br><select class="inp" data-maprow="${i}" style="margin-top:4px;padding:4px 6px;font-size:12px"><option value="">Map to…</option><option value="__new"${r.mapTo==='__new'?' selected':''}>Create as new asset</option>${cands(r.cls).map(n=>`<option${r.mapTo===n?' selected':''}>${esc(n)}</option>`).join('')}</select>`:''}</td>
+        <td>${r.type}</td><td class="num">${r.q===1&&C[r.cls]&&C[r.cls].ul?'—':fmt(r.q,r.q%1?3:0)}</td><td class="num">${fmt(r.p)}</td><td class="num">${fmt(r.q*r.p)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="err" id="wzErr"></div><div class="row-end">${back}<button class="btn primary">Confirm Import</button></div></form>`;
+  }
+  if(w.step==='done')body=`<div class="wz"><b style="font-size:16px">Import complete</b>
+      <span>${w.n} transaction${w.n===1?'':'s'} added to <b>${esc((targetP(w)||{}).name||'')}</b>.${w.m?` ${w.m} skipped because they were already imported.`:''}</span>
+      <div class="row-end"><button class="btn" data-imp="log">View Import Log</button><button class="btn primary" data-backp>Back to Portfolio</button></div></div>`;
+  return `<div class="wz">${bar}${body}</div>`;
+}
+function targetP(w){const F=db.families.find(f=>f.id===w.fam);const T=TPL(w.tpl);return (T.t==='F&O'?F.fno:F.portfolios).find(p=>p.id===w.pid)}
+
+// Sample rows standing in for what a parser would read from the file
+function genRows(w){
+  const T=TPL(w.tpl), p=targetP(w), d='2026-10-23', rows=[];
+  if(T.t==='F&O'){
+    const dup=p.trades.find(t=>t.real);
+    rows.push({d,name:'NIFTY 28-OCT-26 24900 PE',type:'Sell',q:75,p:61.4,status:'Mapped',fno:{real:2310}});
+    rows.push({d,name:'NIFTY 28-OCT-26 25300 CE',type:'Sell',q:75,p:38.1,status:'Mapped',fno:{real:-1185}});
+    if(dup)rows.push({d:'2026-09-29',name:dup.sym,type:'Sell',q:75,p:dup.real/75,status:'Fully Assigned',fno:{real:dup.real}});
+    return rows;
+  }
+  if(T.t==='Bank'){
+    const nm=T.n.split(' - ')[0]+' Savings';
+    rows.push({d:'2026-10-01',name:nm,cls:'BNK',type:'Deposit',q:1,p:185000,status:'Mapped',isNew:!p.holdings.some(h=>h.name===nm)});
+    rows.push({d:'2026-10-15',name:nm,cls:'BNK',type:'Deposit',q:1,p:42000,status:'Mapped',isNew:!p.holdings.some(h=>h.name===nm)});
+    return rows;
+  }
+  const cl=T.t==='MF'?'MFE':'EQ';
+  const ex=p.holdings.find(h=>h.cls===cl);
+  if(ex){
+    rows.push({d,name:ex.name,cls:cl,type:'Buy',q:cl==='MFE'?54.27:5,p:ex.ltp,status:'Mapped'});
+    const l=ex.lots[0];rows.push({d:l.d,name:ex.name,cls:cl,type:'Buy',q:l.q,p:l.p,status:'Fully Assigned'});
+  }
+  if(cl==='MFE')rows.push({d,name:'Kotak Small Cap Fund - Direct',cls:'MFE',type:'Buy',q:212.4,p:282.5,status:'Mapped',isNew:1});
+  else{
+    rows.push({d,name:'HDFC Bank',cls:'EQ',type:'Buy',q:10,p:1642.3,status:'Mapped',isNew:!p.holdings.some(h=>h.name==='HDFC Bank')});
+    rows.push({d,name:'SHREE OSFM E-MOBILITY (SME, no ISIN)',cls:'EQ',type:'Buy',q:400,p:88.0,status:'Map'});
+  }
+  return rows;
+}
+function confirmImport(){
+  const w=st.wiz, p=targetP(w), err=m=>{$('#wzErr').textContent=m};
+  const open=w.rows.filter(r=>r.status==='Map'&&!r.mapTo).length;
+  if(open)return err('Map '+open+' asset'+(open>1?'s':'')+' before confirming.');
+  let n=0,m=0;
+  w.rows.forEach(r=>{
+    if(r.status==='Fully Assigned'){m++;return}
+    n++;
+    if(r.fno){p.trades.push({sym:r.name,k:'S',qty:0,cost:0,ltp:0,real:r.fno.real,fy:'FY 2026-27',exp:1});return}
+    const name=r.status==='Map'&&r.mapTo!=='__new'?r.mapTo:r.name.replace(/ \(SME, no ISIN\)$/,'');
+    let h=p.holdings.find(x=>x.cls===r.cls&&x.name===name);
+    const ul=C[r.cls].ul;
+    if(!h){h={cls:r.cls,name,ltp:ul?0:r.p,prev:ul?0:r.p,lots:[]};p.holdings.push(h)}
+    if(ul){h.ltp+=r.p;h.prev+=r.p}
+    h.lots.push({d:r.d,q:r.q,p:r.p});
+  });
+  if(w.logIdx!=null&&db.log[w.logIdx]){db.log[w.logIdx].pend=0;db.log[w.logIdx].s=n+' imported · '+m+' skipped as already imported'}
+  else db.log.unshift({f:w.file,t:w.tpl,at:nowStamp(),s:n+' imported · '+m+' skipped as already imported'});
+  w.n=n;w.m=m;w.step='done';save();render();mImport();
+}
+function wizNext(){
+  const w=st.wiz, err=m=>{$('#wzErr').textContent=m};
+  if(w.step==='pw'){if(!$('#wzPass').value)return err('Enter the file password.');w.step='map'}
+  else if(w.step==='map'){w.pid=$('#wzP').value;if(!w.pid)return err('Add a portfolio to this family first.');w.rows=null;w.step=TPL(w.tpl).broker?'broker':'review'}
+  else if(w.step==='broker'){w.broker=$('#wzB').value;w.step='review'}
+  mImport();
+}
+function addFiles(files){
+  if(!files.length)return;
+  startWiz(files[0].name,st.tpl);
+  if(files.length>1)toast('One file at a time: started with '+files[0].name);
+}
+
+/* export */
+async function saveCSV(name,rows){
+  const csv='﻿'+rows.map(r=>r.map(v=>{v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n');
+  if(window.claude&&window.claude.use){
+    try{const d=await window.claude.use('downloads');
+      if(d){await d.save({filename:name,data:csv});toast('Saved '+name);return}
+    }catch(e){if(e&&e.code==='declined'){toast('Download cancelled');return}}
+    toast('Downloading is not available in this view');return;
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+  toast('Downloaded '+name);
+}
+function tableCSV(t){return [...t.querySelectorAll('tr')].map(tr=>[...tr.children].map(c=>{const s=c.querySelector('select');return (s?'':c.innerText).replace(/\s*\n\s*/g,' ').trim()}))}
+
+/* View All Transactions (Actions menu) */
+function txnRows(){
+  const F=fam(), pn=st.pid==='__all'?null:(F.portfolios.find(p=>p.id===st.pid)||{}).name, f=st.vf, q=f.q.toLowerCase();
+  return viewHoldings().flatMap(h=>h.lots.map(l=>({...l,h,who:l.who||pn})))
+    .filter(t=>(!f.cls||t.h.cls===f.cls)&&(!f.from||t.d>=f.from)&&(!f.to||t.d<=f.to)&&(!q||t.h.name.toLowerCase().includes(q)))
+    .sort((a,b)=>a.d<b.d?1:-1);
+}
+function txnTable(){
+  const xs=txnRows(), total=xs.reduce((s,t)=>s+t.q*t.p,0);
+  return xs.length?`<table><thead><tr><th>Date</th><th>Portfolio</th><th>Asset class</th><th>Asset</th><th>Type</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>
+    ${xs.map(t=>{const ul=C[t.h.cls].ul;return `<tr class="row"><td>${dmy(t.d)}</td><td>${esc(t.who||'')}</td><td>${C[t.h.cls].n}</td><td>${esc(t.h.name)}</td><td>${ul?'Deposit':'Buy'}</td><td class="num">${ul?'—':fmt(t.q,t.q%1?3:0)}</td><td class="num">${ul?'—':fmt(t.p)}</td><td class="num">${fmt(t.q*t.p)}</td></tr>`}).join('')}
+    </tbody><tfoot><tr><td>${xs.length} transactions</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="num">${fmt(total)}</td></tr></tfoot></table>`
+    :`<div class="empty">No transactions match these filters.</div>`;
+}
+function mTxns(){
+  const F=fam(), pn=st.pid==='__all'?'Family Group':(F.portfolios.find(p=>p.id===st.pid)||{}).name, f=st.vf;
+  M.innerHTML=head(`<div class="grow" style="font-family:var(--f-display);font-weight:700;font-size:17px">All Transactions</div>`,
+    `<div class="mut" style="font-size:13px">Portfolio: <b style="color:var(--ink);margin-left:4px">${esc(pn)}</b></div>`)+
+  `<div class="mbody"><div class="anfull">
+    <div class="vfilters">
+      <label class="field">Asset class<select id="vfC"><option value="">All</option>${CLASSES.map(c=>`<option value="${c.k}"${f.cls===c.k?' selected':''}>${c.n}</option>`).join('')}</select></label>
+      <label class="field">From<input type="date" id="vfF" value="${f.from}"></label>
+      <label class="field">To<input type="date" id="vfT" value="${f.to}"></label>
+      <label class="field" style="flex:1;min-width:160px">Asset<input id="vfQ" placeholder="Search by name" value="${esc(f.q)}"></label>
+      <button class="btn" data-vfclear>Clear filters</button>
+      <button class="btn primary" data-txcsv>Export to CSV</button>
+    </div>
+    <div class="tbox" id="vtTable" style="max-height:55vh">${txnTable()}</div>
+  </div></div>`;
+}
+
+/* reports */
+const REPORTS={
+  'Prime':[
+    {n:'Advanced Performance Review',lock:1,d:'Full performance pack for a portfolio or the whole family.',b:['XIRR by asset class and category','XIRR against Nifty 50, Sensex or a custom blend','Any date range you choose']},
+    {n:'AIF / PMS Investment Review',lock:1,d:'Review of alternative investment funds and PMS holdings with fees and benchmark.',b:[]}],
+  'Performance':[
+    {n:'XIRR by asset class',run:'xirr',d:'Annualised return of each asset class since its first investment, worked out from every purchase date.',b:[]},
+    {n:'Holdings as on date',run:'hold',d:'Every holding with quantity, cost, value and gain as of today.',b:[]},
+    {n:'Equity exposure',run:'eq',d:'How your equity money is split between direct stocks, ETFs, equity mutual funds and SIFs.',b:[]}],
+  'Capital Gains':[
+    {n:'Unrealised gains: short vs long term',run:'stlt',d:'Splits each purchase into short or long term by how long it has been held. Equity and equity funds become long term after 12 months, others after 24.',b:['Use it to plan sales before 31 March','Equity long-term gains up to ₹1.25 lakh a year are tax-free']},
+    {n:'Realised capital gains (FIFO)',lock:1,d:'Gains on everything sold in a financial year, matched oldest-first, with 31-Jan-2018 grandfathering for equity.',b:[]}],
+  'Transactions':[
+    {n:'Stock Transactions',run:'stx',period:1,d:'Every stock and ETF purchase in the period you choose, with quantity, price and amount.',b:[]},
+    {n:'All Transactions',run:'txn',d:'Every purchase and deposit across all asset classes, newest first.',b:[]}],
+  'Income':[
+    {n:'Dividend & interest',lock:1,d:'Dividends, FD and bond interest by financial year, with TDS.',b:[]}],
+  'Tax Software Formats':[
+    {n:'ITR Schedule 112A (CSV)',lock:1,d:'Long-term equity gains in the exact column layout the income tax utility accepts.',b:[]},
+    {n:'Schedule CG summary',lock:1,d:'Short and long term gains grouped the way the ITR form asks.',b:[]}],
+};
+const PER={'All dates':['0000','9999'],'FY 2026-27':['2026-04-01','2027-03-31'],'FY 2025-26':['2025-04-01','2026-03-31'],'FY 2024-25':['2024-04-01','2025-03-31'],'FY 2023-24':['2023-04-01','2024-03-31'],'FY 2022-23':['2022-04-01','2023-03-31']};
+function mReports(out){
+  const F=fam(), list=REPORTS[st.rcat];
+  if(!st.rep||!list.some(r=>r.n===st.rep))st.rep=list[0].n;
+  const R=list.find(r=>r.n===st.rep);
+  const pn=st.pid==='__all'?'Family Group':(F.portfolios.find(p=>p.id===st.pid)||{}).name;
+  M.innerHTML=head(`<div class="grow" style="font-family:var(--f-display);font-weight:700;font-size:17px">FolioLense Reports</div>`,
+    `<div class="mut" style="font-size:13px">Family: <b style="color:var(--ink);margin-left:4px">${esc(F.name)}</b></div><div class="mut" style="font-size:13px">Portfolio: <b style="color:var(--ink);margin-left:4px">${esc(pn)}</b></div>`)+
+  `<div class="mbody rep">
+    <div class="cats">${Object.keys(REPORTS).map(k=>`<button data-rcat="${k}" aria-pressed="${k===st.rcat}">${k}</button>`).join('')}</div>
+    <div class="rl"><div class="colhead">${st.rcat}</div>${list.map(r=>`<button data-rep="${esc(r.n)}" aria-pressed="${r.n===st.rep}"><span>${r.n}</span>${r.lock?'<span title="Premium" class="mut">🔒</span>':''}</button>`).join('')}</div>
+    <div class="det"><h3><span>${R.n}</span>${R.lock?'<span class="chip">Premium</span>':''}</h3>
+      ${R.period?`<label class="field" style="max-width:240px">Period<select id="repPeriod">${Object.keys(PER).map(k=>`<option${k===st.rper?' selected':''}>${k}</option>`).join('')}</select></label>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn dark" data-gen>${R.run?'Generate Report':'Preview not in prototype'}</button>${out?'<button class="btn primary" data-repcsv>Export to CSV</button>':''}</div>
+      <p>${R.d}</p>${R.b.length?`<ul>${R.b.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
+      ${out?`<div class="out">${out}</div>`:''}
+    </div></div>`;
+}
+function runReport(){
+  const R=REPORTS[st.rcat].find(r=>r.n===st.rep);
+  if(!R.run){toast(R.n+' · not in this prototype');return}
+  const all=viewHoldings();let html='';
+  if(R.run==='xirr'){
+    html=`<table><thead><tr><th>Asset class</th><th>Invested</th><th>Current value</th><th>Gain</th><th>XIRR</th></tr></thead><tbody>`+
+      CLASSES.map(c=>({c,hs:all.filter(h=>h.cls===c.k)})).filter(r=>r.hs.length).map(r=>{const t=tot(r.hs),x=xirrOf(r.hs);return `<tr class="row"><td>${r.c.n}</td><td class="num">${fmt(t.inv)}</td><td class="num">${fmt(t.cur)}</td><td class="num ${cls(t.cur-t.inv)}">${fmt(t.cur-t.inv)}</td><td class="num ${cls(x)}">${isFinite(x)?pct(x):'—'}</td></tr>`}).join('')+`</tbody></table>`;
+  }else if(R.run==='hold'){
+    html=`<table><thead><tr><th>Asset</th><th>Class</th><th>Qty</th><th>Cost</th><th>Value</th><th>Gain %</th></tr></thead><tbody>`+
+      all.map(h=>({h,s:stats(h)})).sort((a,b)=>b.s.cur-a.s.cur).map(({h,s})=>`<tr class="row"><td>${esc(h.name)}</td><td>${C[h.cls].code||h.cls}</td><td class="num">${C[h.cls].ul?'—':fmt(s.qty,s.qty%1?3:0)}</td><td class="num">${fmt(s.inv)}</td><td class="num">${fmt(s.cur)}</td><td class="num ${cls(s.unrlP)}">${pct(s.unrlP)}</td></tr>`).join('')+`</tbody></table>`;
+  }else if(R.run==='eq'){
+    const parts=[['Direct stocks',h=>h.cls==='EQ'&&h.sub!=='ETF'],['ETFs',h=>h.cls==='EQ'&&h.sub==='ETF'],['Equity mutual funds',h=>h.cls==='MFE'],['SIF',h=>h.cls==='SIF']].map(([n,f])=>{const hs=all.filter(f);return {n,hs,t:tot(hs)}}).filter(p=>p.hs.length);
+    const E=parts.reduce((s,p)=>s+p.t.cur,0);
+    html=`<table><thead><tr><th>Equity route</th><th>Holdings</th><th>Invested</th><th>Current value</th><th>Share of equity</th></tr></thead><tbody>`+parts.map(p=>`<tr class="row"><td>${p.n}</td><td class="num">${p.hs.length}</td><td class="num">${fmt(p.t.inv)}</td><td class="num">${fmt(p.t.cur)}</td><td class="num">${(p.t.cur/E*100).toFixed(1)}%</td></tr>`).join('')+
+      `</tbody><tfoot><tr><td>Total equity</td><td></td><td class="num">${fmt(parts.reduce((s,p)=>s+p.t.inv,0))}</td><td class="num">${fmt(E)}</td><td class="num">100%</td></tr></tfoot></table>`;
+  }else if(R.run==='stlt'){
+    let ST=0,LT=0;
+    const rows=all.filter(h=>!C[h.cls].ul).map(h=>{let st_=0,lt_=0;h.lots.forEach(l=>{const g=l.q*(h.ltp-l.p);(days(l.d,TODAY)>(C[h.cls].eq?365:730))?lt_+=g:st_+=g});ST+=st_;LT+=lt_;return {h,st_,lt_}}).filter(r=>r.st_||r.lt_);
+    html=`<table><thead><tr><th>Asset</th><th>Short-term gain</th><th>Long-term gain</th></tr></thead><tbody>`+rows.map(r=>`<tr class="row"><td>${esc(r.h.name)}</td><td class="num ${cls(r.st_)}">${fmt(r.st_)}</td><td class="num ${cls(r.lt_)}">${fmt(r.lt_)}</td></tr>`).join('')+
+      `</tbody><tfoot><tr><td>Total</td><td class="num ${cls(ST)}">${fmt(ST)}</td><td class="num ${cls(LT)}">${fmt(LT)}</td></tr></tfoot></table>`;
+  }else if(R.run==='stx'){
+    const [a,z]=PER[st.rper];
+    const tx=all.filter(h=>h.cls==='EQ').flatMap(h=>h.lots.map(l=>({...l,h}))).filter(t=>t.d>=a&&t.d<=z).sort((x,y)=>x.d<y.d?1:-1);
+    const T=tx.reduce((s,t)=>s+t.q*t.p,0);
+    html=tx.length?`<table><thead><tr><th>Date</th><th>Stock / ETF</th><th>Portfolio</th><th>Type</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>`+tx.map(t=>`<tr class="row"><td>${dmy(t.d)}</td><td>${esc(t.h.name)}</td><td>${esc(t.who||(fam().portfolios.find(p=>p.id===st.pid)||{}).name||'')}</td><td>Buy</td><td class="num">${fmt(t.q,t.q%1?3:0)}</td><td class="num">${fmt(t.p)}</td><td class="num">${fmt(t.q*t.p)}</td></tr>`).join('')+`</tbody><tfoot><tr><td>${tx.length} transactions</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fmt(T)}</td></tr></tfoot></table>`
+      :`<div class="empty">No stock transactions in ${st.rper}.</div>`;
+  }else if(R.run==='txn'){
+    const tx=all.flatMap(h=>h.lots.map(l=>({...l,h}))).sort((a,b)=>a.d<b.d?1:-1);
+    html=`<table><thead><tr><th>Date</th><th>Asset</th><th>Portfolio</th><th>Qty</th><th>Price</th><th>Amount</th></tr></thead><tbody>`+tx.map(t=>`<tr class="row"><td>${dmy(t.d)}</td><td>${esc(t.h.name)}</td><td>${esc(t.who||(fam().portfolios.find(p=>p.id===st.pid)||{}).name||'')}</td><td class="num">${C[t.h.cls].ul?'—':fmt(t.q,t.q%1?3:0)}</td><td class="num">${C[t.h.cls].ul?'—':fmt(t.p)}</td><td class="num">${fmt(t.q*t.p)}</td></tr>`).join('')+`</tbody></table>`;
+  }
+  mReports(html);
+}
+
+/* ---------- events ---------- */
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2400)}
+function closeDD(except){document.querySelectorAll('.panel:not(.hp)').forEach(p=>{if(p!==except)p.hidden=true})}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button,tr[data-tpl]');
+  if(!b){if(!e.target.closest('.panel'))closeDD();return}
+  if(b.dataset.dd||b.dataset.dd2){
+    const id=b.dataset.dd||b.dataset.dd2;
+    if(b.dataset.dd2&&st.book==='fno'){st.book='inv';render()}
+    const p=$('#dd-'+id);if(!p)return;
+    if(id==='fam')renderFamPanel();
+    // hover menus: a click always opens (touch screens have no hover)
+    const show=b.closest('.hov')&&b.dataset.dd?true:p.hidden;closeDD();p.hidden=!show;return;
+  }
+  if(b.dataset.anal){
+    closeDD();st.rcat='Performance';
+    st.rep={hold:'Holdings as on date',perf:'XIRR by asset class',eq:'Equity exposure'}[b.dataset.anal];
+    openModal('reports');runReport();return;
+  }
+  if(!b.closest('.panel')||b.dataset.soon||b.dataset.open||b.dataset.go||b.dataset.period)closeDD();
+  if(b.dataset.soon){toast(b.dataset.soon+' · not in this prototype');return}
+  if(b.dataset.open){openModal(b.dataset.open);return}
+  if('close' in b.dataset){M.close();return}
+  if(b.dataset.go){const [f,p]=b.dataset.go.split('|');st.fam=f;st.pid=p;st.fid=null;st.book='inv';st.open={};render();return}
+  if(b.dataset.p){st.pid=b.dataset.p;st.open={};render();return}
+  if(b.dataset.fid){st.fid=b.dataset.fid;render();return}
+  if(b.dataset.tab){st.tab=b.dataset.tab;renderMain();return}
+  if(b.dataset.ftab){st.ftab=b.dataset.ftab;renderMain();return}
+  if(b.dataset.period){st.period=b.dataset.period;renderMain();return}
+  if(b.dataset.scroll){$('#tabs').scrollBy({left:+b.dataset.scroll*320,behavior:'smooth'});return}
+  if(b.dataset.sort){const k=b.dataset.sort;st.sort=st.sort.k===k?{k,d:-st.sort.d}:{k,d:k==='name'?1:-1};renderMain();return}
+  if(b.dataset.grp){st.closed[b.dataset.grp]=!st.closed[b.dataset.grp];renderMain();return}
+  if(b.dataset.row){st.open[b.dataset.row]=!st.open[b.dataset.row];renderMain();return}
+  if(b.dataset.fav){const n=b.dataset.fav,i=db.favs.indexOf(n);i<0?db.favs.push(n):db.favs.splice(i,1);save();toast(i<0?'Added to favourites':'Removed from favourites');mImport();return}
+  if(b.dataset.tview){st.tview=b.dataset.tview;mImport();return}
+  if(b.dataset.imp){st.imp=b.dataset.imp;if(st.wiz&&st.wiz.step==='done')st.wiz=null;mImport();return}
+  if(b.dataset.tpl){if(st.wiz&&st.wiz.step!=='done'){toast('Finish or cancel the current import first');return}st.wiz=null;st.tpl=b.dataset.tpl;mImport();return}
+  if(b.dataset.pend){const l=db.log[+b.dataset.pend];startWiz(l.f,l.t,+b.dataset.pend);return}
+  if('wzcancel' in b.dataset){st.wiz=null;mImport();return}
+  if('wzback' in b.dataset){const w=st.wiz,s=wizSteps(w),i=s.findIndex(x=>x[0]===w.step);w.step=s[Math.max(0,i-1)][0];mImport();return}
+  if('addbroker' in b.dataset){const n=$('#newBr');n.hidden=false;$('#wzNewB').focus();return}
+  if('savebroker' in b.dataset){const v=$('#wzNewB').value.trim();if(!v)return;if(!db.brokers.includes(v))db.brokers.push(v);st.wiz.broker=v;save();mImport();toast('Broker added');return}
+  if('backp' in b.dataset){const w=st.wiz,fno=TPL(w.tpl).t==='F&O';st.fam=w.fam;if(fno){st.book='fno';st.fid=w.pid}else{st.book='inv';st.pid=w.pid}st.wiz=null;M.close();render();return}
+  if('txcsv' in b.dataset){const pn=st.pid==='__all'?'family':((fam().portfolios.find(p=>p.id===st.pid)||{}).name||'portfolio');saveCSV('transactions-'+pn.replace(/\W+/g,'-').toLowerCase()+'.csv',[['Date','Portfolio','Asset class','Asset','Type','Qty','Price','Amount'],...txnRows().map(t=>{const ul=C[t.h.cls].ul;return [t.d,t.who||'',C[t.h.cls].n,t.h.name,ul?'Deposit':'Buy',ul?'':t.q,ul?'':t.p,(t.q*t.p).toFixed(2)]})]);return}
+  if('vfclear' in b.dataset){st.vf={cls:'',from:'',to:'',q:''};mTxns();return}
+  if('repcsv' in b.dataset){const t=$('#modal .out table');if(t)saveCSV(st.rep.replace(/\W+/g,'-').toLowerCase()+'.csv',tableCSV(t));return}
+  if(b.dataset.rcat){st.rcat=b.dataset.rcat;st.rep=null;mReports();return}
+  if(b.dataset.rep){st.rep=b.dataset.rep;mReports();return}
+  if('gen' in b.dataset){runReport();return}
+  if(b.id==='bInv'||b.id==='bFno'){st.book=b.id==='bInv'?'inv':'fno';render();return}
+  if(b.id==='focusSearch'){$('#aq').focus();return}
+  if(b.id==='addFamBtn'){const f=$('#addFamForm');f.hidden=false;$('#newFam').focus();return}
+  if(b.id==='reset'){db=seed();save();st.fam=db.families[0].id;st.pid='__all';st.fid=null;render();toast('Sample data restored');return}
+});
+document.addEventListener('submit',e=>{
+  e.preventDefault();
+  if(e.target.id==='txForm')saveTx();
+  if(['wzPw','wzMap','wzBr'].includes(e.target.id))wizNext();
+  if(e.target.id==='wzRev')confirmImport();
+  if(e.target.id==='addFamForm'){const n=$('#newFam').value.trim();if(!n)return;const f={id:'f'+uid(),name:n,recent:[],portfolios:[],fno:[]};db.families.push(f);save();st.fam=f.id;st.pid='__all';closeDD();render();toast('Family "'+n+'" added. Now add a portfolio.')}
+  if(e.target.id==='addpForm'){
+    const n=$('#apN').value.trim(),bk=$('#apB').value,t=$('#apT').value,F=fam();
+    if(!n){$('#apErr').textContent='Enter a portfolio name.';return}
+    if(bk==='fno'){const p={id:'q'+uid(),name:n,charges:{},trades:[]};F.fno.push(p);st.book='fno';st.fid=p.id}
+    else{const p={id:'p'+uid(),name:n,type:t,holdings:[]};F.portfolios.push(p);st.book='inv';st.pid=p.id}
+    save();M.close();render();toast('Portfolio "'+n+'" added');
+  }
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='txC'||e.target.id==='txP')syncTx();
+  if(e.target.id==='ptype'){st.ptype=e.target.value;renderRail()}
+  if(e.target.id==='file'&&e.target.files.length)addFiles(e.target.files);
+  if(e.target.id==='wzFam'){const w=st.wiz;w.fam=e.target.value;const F=db.families.find(f=>f.id===w.fam);w.pid=((TPL(w.tpl).t==='F&O'?F.fno:F.portfolios)[0]||{}).id;mImport()}
+  if(e.target.dataset&&e.target.dataset.maprow){st.wiz.rows[+e.target.dataset.maprow].mapTo=e.target.value}
+  if(['vfC','vfF','vfT'].includes(e.target.id)){st.vf[{vfC:'cls',vfF:'from',vfT:'to'}[e.target.id]]=e.target.value;$('#vtTable').innerHTML=txnTable()}
+  if(e.target.id==='repPeriod')st.rper=e.target.value;
+});
+document.addEventListener('input',e=>{
+  const id=e.target.id;
+  const keep=fn=>{const pos=e.target.selectionStart;fn();const i=$('#'+id);if(i){i.focus();i.setSelectionRange(pos,pos)}};
+  if(id==='aq'){st.q=e.target.value;keep(renderMain)}
+  if(id==='gsearch'){st.gq=e.target.value;renderRail()}
+  if(id==='famq')keep(renderFamPanel);
+  if(id==='tplq')keep(mImport);
+  if(id==='vfQ'){st.vf.q=e.target.value;$('#vtTable').innerHTML=txnTable()}
+});
+document.addEventListener('dragover',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();d.classList.add('over')}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d)d.classList.remove('over')});
+document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest('#drop');if(d){e.preventDefault();addFiles(e.dataTransfer.files)}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDD()});
+M.addEventListener('click',e=>{if(e.target===M)M.close()});
+
+render();
+</script>
