@@ -1,0 +1,13 @@
+{
+  "name": "foliolense",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix web install && node scripts/worker.mjs setup",
+    "dev": "concurrently -n web,worker -c green,cyan \"npm --prefix web run dev\" \"node scripts/worker.mjs dev\"",
+    "test": "npm --prefix web test && node scripts/worker.mjs test",
+    "check": "npm --prefix web run typecheck && npm --prefix web run lint"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2"
+  }
+}

@@ -6,6 +6,15 @@ A personal family portfolio tracker for Indian investors: families, portfolios, 
 
 Design approved. The clickable prototype is in [`prototype/index.html`](prototype/index.html). Open it in a browser; it runs on sample data and needs no server.
 
+## Run it on your laptop
+
+1. Once: `npm install`, then `npm run setup` (installs the web app and the Python worker).
+2. Once: copy `web/.env.example` to `web/.env.local` and fill in the Supabase URL and anon key.
+3. Once: run `supabase/migrations/0001_init.sql` in Supabase → SQL Editor.
+4. Every time: `npm run dev`, then open http://localhost:3000 (worker health: http://localhost:8000/health).
+
+Checks: `npm test` (web + worker tests), `npm run check` (types + lint).
+
 ## Documents
 
 - [`docs/PRD.md`](docs/PRD.md): what FolioLense does, every screen, data model, calculations, imports

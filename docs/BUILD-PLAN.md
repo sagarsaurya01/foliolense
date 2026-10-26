@@ -36,7 +36,7 @@ Phases run in order. Phases 4 and 5 can swap if F&O matters more for the coming 
 | 0.3 | Supabase: connect the project; write `supabase/migrations/0001_schema.sql` (PRD §5) and `0002_rls.sql` (§5.1) | Tables exist; RLS test: user B cannot read user A's family (automated test) |
 | 0.4 | Auth screens (S18): sign up, sign in, reset password, sign out | You can create an account and sign in |
 | 0.5 | App shell: S01 top bar, S02 family bar, S03 rail, routing `/family/[id]` and `/portfolio/[id]` | Navigation works with empty data |
-| 0.6 | Seed script: loads the prototype's sample "Mehra Family" into a demo account | Demo account shows the same numbers as the prototype |
+| 0.6 | "Load demo family" button: loads the prototype's sample "Mehra Family" into your account | Same portfolios, holdings, quantities and invested amounts as the prototype (prices and gains follow in Phases 1–2) |
 | 0.7 | One command to run everything on the laptop (`npm run dev` starts web + worker) | Works from a fresh clone with only `.env.local` filled in |
 | 0.8 | CI on GitHub Actions: type-check, lint, unit tests on every push | A red ✗ appears on GitHub if a test fails |
 
