@@ -10,3 +10,11 @@ sample-files/*
 !sample-files/README.md
 reference/mprofit-screenshots/
 reference/old-drafts/
+
+# worker
+worker/.venv/
+__pycache__/
+.pytest_cache/
+
+# local tool settings
+.claude/
