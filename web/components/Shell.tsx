@@ -133,13 +133,18 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   // value of one portfolio's share of the loaded holdings (rail figures)
   const membersOf = (id: string) => (id === "all" ? bookPorts.map((p) => p.id) : groups.find((g) => g.id === id)?.members ?? [id]);
   const valueOf = (id: string) => {
+    // a member's share of each holding's current value (or cost when unpriced), split by units
+    // (or by cost for balance types). Uses h.fig, which already applies the live or typed-in price.
     const ids = membersOf(id);
     return holdings.reduce((s, h) => {
-      const cost = h.lots.reduce((a, l) => a + l.costPaise, 0) || 1;
-      const mine = h.lots.filter((l) => ids.includes(l.portfolioId));
-      if (h.fig.currentPaise == null) return s + mine.reduce((a, l) => a + l.costPaise, 0);
-      if (h.balance) return s + (h.fig.currentPaise * mine.reduce((a, l) => a + l.costPaise, 0)) / cost;
-      return s + mine.reduce((a, l) => a + l.qty, 0) * (h.meta.price_paise ?? 0);
+      const share = (l: { portfolioId: string }) => ids.includes(l.portfolioId);
+      const total = h.balance ? h.lots.reduce((a, l) => a + l.costPaise, 0) : h.fig.qty;
+      if (!total) return s;
+      const mine = h.balance
+        ? h.lots.filter(share).reduce((a, l) => a + l.costPaise, 0)
+        : h.lots.filter(share).reduce((a, l) => a + l.qty, 0);
+      const value = h.fig.currentPaise ?? h.fig.investedPaise;
+      return s + (value * mine) / total;
     }, 0);
   };
   const showValue = (id: string) => membersOf(id).every((m) => membersOf(selected).includes(m));
