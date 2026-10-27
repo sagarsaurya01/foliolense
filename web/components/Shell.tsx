@@ -11,6 +11,8 @@ import { buildHoldings, xirrPct, type FeedPrices, type Holding, type TxRow } fro
 import { LinkPrice } from "./LinkPrice";
 import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
+import { FnoBook, type FnoTradeRow } from "./FnoBook";
+import { FnoImport } from "./FnoImport";
 import { ImportOpening } from "./ImportOpening";
 import { ImportWizard, type ImportLogRow } from "./ImportWizard";
 import { Reports } from "./Reports";
@@ -34,6 +36,7 @@ type Props = {
   selected: string;
   tab: string;
   rows: TxRow[];
+  fnoTrades: FnoTradeRow[];
   feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][];
   indices: { index_code: string; close: number; prev_close: number | null; price_date: string }[];
   importLog: ImportLogRow[];
@@ -49,6 +52,7 @@ type Dialog =
   | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
   | { kind: "import" }
   | { kind: "importStatements" }
+  | { kind: "importFno" }
   | { kind: "reports" }
   | { kind: "analytics" }
   | { kind: "addPortfolio" }
@@ -57,7 +61,7 @@ type Dialog =
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, importLog, assets, asOf }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, fnoTrades, feed, indices, importLog, assets, asOf }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -387,15 +391,39 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 </div>
               </div>
             )}
+            {book === "fno" && current && (
+              <div className="actions">
+                <div className="dd">
+                  <button className="mb car" onClick={toggle("factions")}>Actions</button>
+                  {open === "factions" && (
+                    <div className="panel">
+                      <button className="it" onClick={() => show({ kind: "importFno" })}>Import F&amp;O contract note</button>
+                      <button className="it" onClick={() => show({ kind: "addPortfolio" })}>Add F&amp;O portfolio</button>
+                      {current && (
+                        <>
+                          <hr />
+                          <button className="it" onClick={() => show({ kind: "rename", what: "portfolio", id: current.id, name: current.name })}>Rename</button>
+                          <button className="it" style={{ color: "var(--loss)" }} onClick={() => show({ kind: "delete", what: "portfolio", id: current.id, name: current.name })}>Delete…</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {book === "fno" ? (
-            <div className="tbox">
-              <div className="empty">
-                {bookPorts.length ? "No F&O trades yet. The F&O book is built in Phase 5." : "No F&O portfolio in this family yet."}
-                {!bookPorts.length && <button className="addp" onClick={() => show({ kind: "addPortfolio" })}><span className="plus">+</span>Add Portfolio</button>}
+            current ? (
+              <FnoBook name={current.name} trades={fnoTrades} />
+            ) : (
+              <div className="tbox">
+                <div className="empty">
+                  {bookPorts.length ? "Pick an F&O portfolio on the left." : "No F&O portfolio in this family yet."}
+                  {!bookPorts.length && <button className="addp" onClick={() => show({ kind: "addPortfolio" })}><span className="plus">+</span>Add Portfolio</button>}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <>
               <section className="summary" aria-label="Summary">
@@ -500,6 +528,9 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
       )}
       {dlg?.kind === "reports" && <Reports rows={rows} title={viewName} portName={portName} onClose={() => setDlg(null)} />}
+      {dlg?.kind === "importFno" && current && book === "fno" && (
+        <FnoImport portfolioId={current.id} portfolioName={current.name} onClose={() => setDlg(null)} onDone={done} />
+      )}
       {dlg?.kind === "addPortfolio" && (
         <AddPortfolio
           familyId={family.id}

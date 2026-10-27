@@ -65,5 +65,22 @@ async def parse_contractnote(file: UploadFile) -> dict:
     if not out["rows"]:
         raise HTTPException(status_code=422, detail=(
             f"No equity trades found in this {broker} contract note. "
-            "If it is an F&O (futures/options) note, that is imported in the F&O book (Phase 5)."))
+            "If it is an F&O (futures/options) note, import it in the F&O book."))
     return {"mode": "transactions", "broker": broker, **out}
+
+
+@app.post("/parse/fno")
+async def parse_fno(file: UploadFile) -> dict:
+    """Original F&O contract-note PDF -> derivative trades."""
+    import pdfplumber
+
+    raw = await file.read()
+    try:
+        with pdfplumber.open(io.BytesIO(raw)) as pdf:
+            pages = [(p.extract_text() or "") for p in pdf.pages]
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not read this PDF: {e}") from e
+    out = statements.fno_cn_parse(pages)
+    if not out["trades"]:
+        raise HTTPException(status_code=422, detail="No F&O trades found. This looks like an equity contract note — import it under Statements.")
+    return {"mode": "fno", **out}

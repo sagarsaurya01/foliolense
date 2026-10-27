@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { FnoTradeRow } from "@/components/FnoBook";
 import type { ImportLogRow } from "@/components/ImportWizard";
 import { Shell, type ShellGroup } from "@/components/Shell";
 import type { AssetOption } from "@/components/TxDialog";
@@ -44,7 +45,17 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   const scope = group ? group.members : selected === "all" ? inBook.map((p) => p.id) : [selected];
 
   let rows: TxRow[] = [];
+  let fnoTrades: FnoTradeRow[] = [];
   const feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][] = [];
+  if (book === "fno" && selected !== "all") {
+    const { data } = await supabase
+      .from("fno_trades")
+      .select("underlying, instrument, expiry, strike_paise, segment, trade_date, side, quantity, price_paise")
+      .eq("portfolio_id", selected)
+      .order("trade_date")
+      .limit(50000);
+    fnoTrades = (data ?? []) as FnoTradeRow[];
+  }
   if (book === "inv" && scope.length) {
     const { data } = await supabase
       .from("transactions")
@@ -81,6 +92,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       selected={selected}
       tab={sp.tab ?? "ALL"}
       rows={rows}
+      fnoTrades={fnoTrades}
       feed={feed}
       indices={(idx ?? []) as { index_code: string; close: number; prev_close: number | null; price_date: string }[]}
       importLog={(importLog ?? []) as ImportLogRow[]}
