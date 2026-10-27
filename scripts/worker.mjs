@@ -18,7 +18,8 @@ if (task === "setup") {
   if (!existsSync(venvPy)) run(systemPy, ["-m", "venv", ".venv"]);
   run(venvPy, ["-m", "pip", "install", "-q", "-r", "requirements.txt"]);
 } else if (task === "dev") {
-  run(venvPy, ["-m", "uvicorn", "main:app", "--port", "8000", "--reload"]);
+  // no --reload: StatReload is unreliable on Windows (it exits the server). Restart manually after edits.
+  run(venvPy, ["-m", "uvicorn", "main:app", "--port", "8000"]);
 } else if (task === "prices") {
   run(venvPy, ["-m", "jobs.run", process.argv[3] || "all"]);
 } else if (task === "test") {

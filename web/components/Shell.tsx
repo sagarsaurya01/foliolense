@@ -12,6 +12,7 @@ import { LinkPrice } from "./LinkPrice";
 import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
 import { ImportOpening } from "./ImportOpening";
+import { ImportWizard, type ImportLogRow } from "./ImportWizard";
 import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
 import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
@@ -34,6 +35,7 @@ type Props = {
   rows: TxRow[];
   feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][];
   indices: { index_code: string; close: number; prev_close: number | null; price_date: string }[];
+  importLog: ImportLogRow[];
   assets: AssetOption[];
   asOf: string;
 };
@@ -45,6 +47,7 @@ type Dialog =
   | { kind: "link"; h: Holding }
   | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
   | { kind: "import" }
+  | { kind: "importStatements" }
   | { kind: "analytics" }
   | { kind: "addPortfolio" }
   | null;
@@ -52,7 +55,7 @@ type Dialog =
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, assets, asOf }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, importLog, assets, asOf }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -72,7 +75,9 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
   const feedMap = useMemo<FeedPrices>(() => new Map(feed), [feed]);
-  const holdings = useMemo(() => buildHoldings(rows, asOf, feedMap), [rows, asOf, feedMap]);
+  const allHoldings = useMemo(() => buildHoldings(rows, asOf, feedMap), [rows, asOf, feedMap]);
+  // hide fully-exited positions (sold out: no units and no cost left) from the live view
+  const holdings = useMemo(() => allHoldings.filter((h) => h.balance || h.fig.qty > 1e-6 || h.fig.investedPaise > 0), [allHoldings]);
   const niftyRow = (code: string) => indices.find((i) => i.index_code === code);
   const total = sumFigures(holdings.map((h) => h.fig));
   const xirr = useMemo(() => xirrPct(rows, holdings, asOf), [rows, holdings, asOf]);
@@ -130,13 +135,18 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   // value of one portfolio's share of the loaded holdings (rail figures)
   const membersOf = (id: string) => (id === "all" ? bookPorts.map((p) => p.id) : groups.find((g) => g.id === id)?.members ?? [id]);
   const valueOf = (id: string) => {
+    // a member's share of each holding's current value (or cost when unpriced), split by units
+    // (or by cost for balance types). Uses h.fig, which already applies the live or typed-in price.
     const ids = membersOf(id);
     return holdings.reduce((s, h) => {
-      const cost = h.lots.reduce((a, l) => a + l.costPaise, 0) || 1;
-      const mine = h.lots.filter((l) => ids.includes(l.portfolioId));
-      if (h.fig.currentPaise == null) return s + mine.reduce((a, l) => a + l.costPaise, 0);
-      if (h.balance) return s + (h.fig.currentPaise * mine.reduce((a, l) => a + l.costPaise, 0)) / cost;
-      return s + mine.reduce((a, l) => a + l.qty, 0) * (h.meta.price_paise ?? 0);
+      const share = (l: { portfolioId: string }) => ids.includes(l.portfolioId);
+      const total = h.balance ? h.lots.reduce((a, l) => a + l.costPaise, 0) : h.fig.qty;
+      if (!total) return s;
+      const mine = h.balance
+        ? h.lots.filter(share).reduce((a, l) => a + l.costPaise, 0)
+        : h.lots.filter(share).reduce((a, l) => a + l.qty, 0);
+      const value = h.fig.currentPaise ?? h.fig.investedPaise;
+      return s + (value * mine) / total;
     }, 0);
   };
   const showValue = (id: string) => membersOf(id).every((m) => membersOf(selected).includes(m));
@@ -184,8 +194,8 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               <button className="car" onClick={toggle("import")} aria-expanded={open === "import"}>Import</button>
               {open === "import" && (
                 <div className="panel">
-                  <button className="it" onClick={() => show({ kind: "import" })} disabled={book !== "inv"}>Opening balances (Excel)</button>
-                  <button className="it" onClick={soon("Statement import (CAS, contract notes)", 3)}>Statements (CAS, contract notes)</button>
+                  <button className="it" onClick={() => show({ kind: "importStatements" })} disabled={book !== "inv" || !invPorts.length}>Statements (tradebook, CAS, e-CAS)</button>
+                  <button className="it" onClick={() => show({ kind: "import" })} disabled={book !== "inv" || !invPorts.length}>Opening balances (Excel)</button>
                 </div>
               )}
             </div>
@@ -332,6 +342,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                     <div className="panel">
                       <button className="it" onClick={() => show({ kind: "list" })}>View All Transactions</button>
                       <button className="it" onClick={() => show({ kind: "tx" })} disabled={!invPorts.length}>Add a transaction</button>
+                      <button className="it" onClick={() => show({ kind: "importStatements" })}>Import statements (tradebook, CAS)</button>
                       <button className="it" onClick={() => show({ kind: "import" })}>Import opening balances (Excel)</button>
                       <button className="it" onClick={() => show({ kind: "addPortfolio" })}>Add portfolio or group</button>
                       {thingToEdit && (
@@ -390,7 +401,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="stat">
                   <span className="label">Current value</span>
                   <span className="v num">{total.currentPaise == null ? "—" : `₹${rupees(total.currentPaise)}`}</span>
-                  <span className="s mut">{total.currentPaise == null ? `${unpriced} without a price` : shortRupees(total.currentPaise)}</span>
+                  <span className="s mut">{unpriced > 0 ? `${unpriced} held at cost — set a price` : total.currentPaise == null ? "—" : shortRupees(total.currentPaise)}</span>
                 </div>
                 <div className="stat"><span className="label">Today&apos;s gain</span><span className={`v num ${tone(total.todayPaise)}`}>{total.todayPaise == null ? "—" : `₹${rupees(total.todayPaise)}`}</span><span className={`s num ${tone(total.todayPct)}`}>{pct(total.todayPct)}</span></div>
                 <div className="stat"><span className="label">Unrealised gain</span><span className={`v num ${tone(total.unrealisedPaise)}`}>{total.unrealisedPaise == null ? "—" : `₹${rupees(total.unrealisedPaise)}`}</span><span className={`s num ${tone(total.unrealisedPct)}`}>{pct(total.unrealisedPct)}</span></div>
@@ -473,6 +484,15 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       )}
       {dlg?.kind === "import" && (
         <ImportOpening familyId={family.id} portfolios={invPorts.map((p) => p.name)} onClose={() => setDlg(null)} onDone={done} />
+      )}
+      {dlg?.kind === "importStatements" && (
+        <ImportWizard
+          portfolios={invPorts.map((p) => ({ id: p.id, name: p.name }))}
+          defaultPortfolio={current?.id}
+          log={importLog}
+          onClose={() => setDlg(null)}
+          onDone={done}
+        />
       )}
       {dlg?.kind === "analytics" && (
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />

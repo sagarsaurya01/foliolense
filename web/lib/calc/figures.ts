@@ -47,20 +47,26 @@ export function figures(lots: Lot[], balance: boolean, p: PriceInfo): Figures {
   };
 }
 
-/** Adds rows; current/today/unrealised are null as soon as any row lacks a price. */
+/**
+ * Adds rows. A holding with no price yet is counted at its cost (so one unpriced holding doesn't
+ * blank the whole total); today's gain counts only priced holdings. `unpricedCount` lets the UI
+ * say how many are held at cost. `currentPaise` is null only when nothing has any cost at all.
+ */
 export function sumFigures(rows: Figures[]) {
   const invested = rows.reduce((s, r) => s + r.investedPaise, 0);
-  const priced = rows.every((r) => r.currentPaise != null);
-  const current = priced ? rows.reduce((s, r) => s + (r.currentPaise ?? 0), 0) : null;
-  const today = priced ? rows.reduce((s, r) => s + (r.todayPaise ?? 0), 0) : null;
+  // unpriced holdings contribute their invested cost to current value (no gain/loss shown on them)
+  const current = rows.length ? rows.reduce((s, r) => s + (r.currentPaise ?? r.investedPaise), 0) : null;
+  const today = rows.reduce((s, r) => s + (r.todayPaise ?? 0), 0);
   const unrl = current == null ? null : current - invested;
+  const prevForToday = current == null ? 0 : current - today;
   return {
     investedPaise: invested,
     currentPaise: current,
     todayPaise: today,
-    todayPct: today == null || current == null || current - today === 0 ? null : (today / (current - today)) * 100,
+    todayPct: !prevForToday ? null : (today / prevForToday) * 100,
     unrealisedPaise: unrl,
     unrealisedPct: unrl == null || !invested ? null : (unrl / invested) * 100,
     pricedCount: rows.filter((r) => r.currentPaise != null).length,
+    unpricedCount: rows.filter((r) => r.currentPaise == null).length,
   };
 }
