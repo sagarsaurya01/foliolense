@@ -31,6 +31,7 @@ export function HoldingsTable({
   portName,
   asOf,
   onSetPrice,
+  onLink,
   onAdd,
   emptyText,
 }: {
@@ -39,9 +40,11 @@ export function HoldingsTable({
   portName: (id: string) => string;
   asOf: string;
   onSetPrice: (h: Holding) => void;
+  onLink: (h: Holding) => void;
   onAdd: () => void;
   emptyText: string;
 }) {
+  const FEED = new Set(["EQ", "MFE", "MFD", "SIF"]); // priced from NSE / AMFI feeds
   const [sort, setSort] = useState<{ k: SortKey; d: 1 | -1 }>({ k: "current", d: -1 });
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -149,6 +152,12 @@ export function HoldingsTable({
                         {h.meta.value_paise != null ? "edit" : <span className="pricebtn set">Set value</span>}
                       </button>
                     )
+                  ) : h.live ? (
+                    <button className="pricebtn num" title={`Live price from the daily feed, as of ${h.live.priceDate}`} onClick={() => onLink(h)}>
+                      <span className="livedot" aria-hidden="true" /> {h.meta.price_paise != null ? "" : ""}{rupees(h.fig.currentPaise != null && h.fig.qty ? h.fig.currentPaise / h.fig.qty : 0)}
+                    </button>
+                  ) : FEED.has(h.cls) ? (
+                    <button className="pricebtn set" onClick={() => onLink(h)}>Link price</button>
                   ) : h.meta.price_paise != null ? (
                     <button className="pricebtn num" title="Update the price" onClick={() => onSetPrice(h)}>{rupees(h.meta.price_paise)}</button>
                   ) : (

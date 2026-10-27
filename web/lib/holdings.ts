@@ -40,6 +40,8 @@ export interface Holding {
   warnings: string[];
   fig: Figures;
   owners: string[];
+  isin: string | null;
+  live: { priceDate: string } | null; // set when the price came from the daily feed
 }
 
 const toTx = (r: TxRow): Tx => ({
@@ -53,7 +55,10 @@ const toTx = (r: TxRow): Tx => ({
   chargesPaise: Number(r.charges_paise),
 });
 
-export function buildHoldings(rows: TxRow[], asOf: string): Holding[] {
+/** isin -> latest close from the daily feed (instrument_prices). */
+export type FeedPrices = Map<string, { close_paise: number; prev_close_paise: number | null; price_date: string }>;
+
+export function buildHoldings(rows: TxRow[], asOf: string, feed?: FeedPrices): Holding[] {
   const byAsset = new Map<string, TxRow[]>();
   rows.forEach((r) => byAsset.set(r.asset_id, [...(byAsset.get(r.asset_id) ?? []), r]));
   const out: Holding[] = [];
@@ -63,20 +68,23 @@ export function buildHoldings(rows: TxRow[], asOf: string): Holding[] {
     const meta = a.meta ?? {};
     const { lots, realised, warnings } = buildLots(txs.map(toTx), balance);
     if (!lots.length && !realised.length) continue;
+    // a linked holding (its asset has an ISIN in the feed) uses the daily price; otherwise the typed-in one
+    const live = a.isin ? feed?.get(a.isin) : undefined;
     let value: number | null = null;
     if (balance) {
       if (meta.deposit) value = lots.reduce((s, l) => s + depositValue(l.costPaise, { ...meta.deposit!, start: l.date }, asOf), 0);
       else if (meta.value_paise != null) value = meta.value_paise;
     }
     const fig = figures(lots, balance, {
-      pricePaise: meta.price_paise,
-      prevPaise: meta.prev_price_paise,
+      pricePaise: live ? live.close_paise : meta.price_paise,
+      prevPaise: live ? (live.prev_close_paise ?? live.close_paise) : meta.prev_price_paise,
       valuePaise: value,
       prevValuePaise: value,
     });
     out.push({
       assetId, name: a.name, cls: a.asset_class, balance, meta, lots, realised, warnings, fig,
       owners: [...new Set(lots.map((l) => l.portfolioId))],
+      isin: a.isin, live: live ? { priceDate: live.price_date } : null,
     });
   }
   return out;

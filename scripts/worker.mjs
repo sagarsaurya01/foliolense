@@ -19,9 +19,11 @@ if (task === "setup") {
   run(venvPy, ["-m", "pip", "install", "-q", "-r", "requirements.txt"]);
 } else if (task === "dev") {
   run(venvPy, ["-m", "uvicorn", "main:app", "--port", "8000", "--reload"]);
+} else if (task === "prices") {
+  run(venvPy, ["-m", "jobs.run", process.argv[3] || "all"]);
 } else if (task === "test") {
   run(venvPy, ["-m", "pytest", "-q"]);
 } else {
-  console.error("usage: node scripts/worker.mjs setup|dev|test");
+  console.error("usage: node scripts/worker.mjs setup|dev|prices|test");
   process.exit(2);
 }

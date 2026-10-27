@@ -7,7 +7,8 @@ import { createFamily, createGroup, createPortfolio, signOut } from "@/app/actio
 import { ASSET_CLASSES, PORTFOLIO_TYPES, classInfo, typeLabel } from "@/lib/assetClasses";
 import { sumFigures } from "@/lib/calc/figures";
 import { initials, rupees, shortRupees } from "@/lib/format";
-import { buildHoldings, xirrPct, type Holding, type TxRow } from "@/lib/holdings";
+import { buildHoldings, xirrPct, type FeedPrices, type Holding, type TxRow } from "@/lib/holdings";
+import { LinkPrice } from "./LinkPrice";
 import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
 import { ImportOpening } from "./ImportOpening";
@@ -31,6 +32,8 @@ type Props = {
   selected: string;
   tab: string;
   rows: TxRow[];
+  feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][];
+  indices: { index_code: string; close: number; prev_close: number | null; price_date: string }[];
   assets: AssetOption[];
   asOf: string;
 };
@@ -39,6 +42,7 @@ type Dialog =
   | { kind: "tx"; edit?: TxRow | null }
   | { kind: "list" }
   | { kind: "price"; h: Holding }
+  | { kind: "link"; h: Holding }
   | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
   | { kind: "import" }
   | { kind: "analytics" }
@@ -48,7 +52,7 @@ type Dialog =
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, assets, asOf }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, assets, asOf }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -67,7 +71,9 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const viewName = current?.name ?? currentGroup?.name ?? (book === "inv" ? "Family Group" : "—");
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
-  const holdings = useMemo(() => buildHoldings(rows, asOf), [rows, asOf]);
+  const feedMap = useMemo<FeedPrices>(() => new Map(feed), [feed]);
+  const holdings = useMemo(() => buildHoldings(rows, asOf, feedMap), [rows, asOf, feedMap]);
+  const niftyRow = (code: string) => indices.find((i) => i.index_code === code);
   const total = sumFigures(holdings.map((h) => h.fig));
   const xirr = useMemo(() => xirrPct(rows, holdings, asOf), [rows, holdings, asOf]);
   const shown = holdings.filter((h) => (tab === "ALL" || h.cls === tab) && (!assetQ || h.name.toLowerCase().includes(assetQ.toLowerCase())));
@@ -249,9 +255,22 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
             <Link href={href({ book: "fno" })} aria-current={book === "fno"}>F&amp;O</Link>
           </div>
           <div className="idx">
-            <div><span className="nm">Sensex</span><span className="mut">—</span></div>
-            <div><span className="nm">Nifty 50</span><span className="mut">—</span></div>
-            <span className="note">Index prices start in Phase 2</span>
+            {[{ code: "Nifty 50", label: "Nifty 50" }, { code: "Nifty Bank", label: "Nifty Bank" }].map(({ code, label }) => {
+              const r = niftyRow(code);
+              const chg = r && r.prev_close != null ? r.close - r.prev_close : null;
+              return (
+                <div key={code}>
+                  <span className="nm">{label}</span>
+                  {r ? (
+                    <span>
+                      <span className="num">{r.close.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {chg != null && <span className={`num ${chg >= 0 ? "gain" : "loss"}`} style={{ marginLeft: 6 }}>{chg >= 0 ? "+" : ""}{(chg / (r.close - chg) * 100).toFixed(2)}%</span>}
+                    </span>
+                  ) : <span className="mut">—</span>}
+                </div>
+              );
+            })}
+            {niftyRow("Nifty 50") && <span className="note">as of {niftyRow("Nifty 50")!.price_date.split("-").reverse().join("-")}</span>}
           </div>
           {book === "inv" && (
             <label className="field">
@@ -396,7 +415,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   <SearchIcon />
                   <input placeholder="Search assets" aria-label="Search assets" value={assetQ} onChange={(e) => setAssetQ(e.target.value)} />
                 </label>
-                <span className="label">Prices typed in · daily prices from Phase 2 · as of {asOf.split("-").reverse().join("-")}</span>
+                <span className="label">Live prices from NSE &amp; AMFI where linked · green dot = live · as of {(niftyRow("Nifty 50")?.price_date ?? asOf).split("-").reverse().join("-")}</span>
               </div>
 
               <div className="tbox">
@@ -406,6 +425,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   portName={portName}
                   asOf={asOf}
                   onSetPrice={(h) => show({ kind: "price", h })}
+                  onLink={(h) => show({ kind: "link", h })}
                   onAdd={() => (invPorts.length ? show({ kind: "tx" }) : show({ kind: "addPortfolio" }))}
                   emptyText={
                     assetQ ? "No assets match that search."
@@ -435,6 +455,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
         <TxList rows={rows} title={viewName} portName={portName} onEdit={(t) => setDlg({ kind: "tx", edit: t })} onClose={() => setDlg(null)} say={(m) => { say(m); router.refresh(); }} />
       )}
       {dlg?.kind === "price" && <PriceDialog h={dlg.h} onClose={() => setDlg(null)} onDone={done} />}
+      {dlg?.kind === "link" && <LinkPrice h={dlg.h} onClose={() => setDlg(null)} onDone={done} onManual={() => setDlg({ kind: "price", h: dlg.h })} />}
       {dlg?.kind === "rename" && <RenameDialog kind={dlg.what} id={dlg.id} name={dlg.name} onClose={() => setDlg(null)} onDone={done} />}
       {dlg?.kind === "delete" && (
         <DeleteDialog
