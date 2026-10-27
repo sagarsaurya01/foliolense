@@ -77,12 +77,22 @@ export async function loadDemoFamily(): Promise<Result> {
     .select("id, name");
   if (pErr) return { error: pErr.message };
 
-  // one private asset per distinct name
-  const names = new Map<string, string>();
-  DEMO_PORTFOLIOS.forEach((p) => p.holdings.forEach((x) => names.set(x.name, x.cls)));
+  // one private asset per distinct name, carrying the prototype's sample prices
+  const names = new Map<string, (typeof DEMO_PORTFOLIOS)[number]["holdings"][number]>();
+  DEMO_PORTFOLIOS.forEach((p) => p.holdings.forEach((x) => names.set(x.name, x)));
+  const priceDate = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const { data: assets, error: aErr } = await supabase
     .from("assets")
-    .insert([...names].map(([name, cls]) => ({ name, asset_class: cls, owner_id: auth.user!.id })))
+    .insert(
+      [...names.values()].map((x) => ({
+        name: x.name,
+        asset_class: x.cls,
+        owner_id: auth.user!.id,
+        meta: classInfo(x.cls).balance
+          ? { value_paise: toPaise(x.price) }
+          : { price_paise: toPaise(x.price), prev_price_paise: toPaise(x.prev), price_date: priceDate },
+      })),
+    )
     .select("id, name");
   if (aErr) return { error: aErr.message };
   const assetId = new Map(assets.map((a) => [a.name, a.id]));

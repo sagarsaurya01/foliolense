@@ -36,6 +36,16 @@ export async function middleware(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
+  // with 2-factor login on, a password-only session must enter its code before seeing any data
+  if (user && !isPublic) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/sign-in";
+      url.search = "?mfa=1";
+      return NextResponse.redirect(url);
+    }
+  }
   return response;
 }
 
