@@ -159,6 +159,27 @@ export async function deleteTransaction(id: string): Promise<Result> {
   return {};
 }
 
+/** Links a holding to a live instrument by ISIN, so the daily feed prices it from now on. */
+export async function linkInstrument(assetId: string, isin: string, nseSymbol?: string | null, amfiCode?: string | null): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { data } = await supabase.from("assets").select("owner_id").eq("id", assetId).maybeSingle();
+  if (!data) return { error: "Asset not found." };
+  if (!data.owner_id) return { error: "This is a shared asset." };
+  const { error } = await supabase.from("assets").update({ isin, nse_symbol: nseSymbol ?? null, amfi_code: amfiCode ?? null }).eq("id", assetId);
+  if (error) return { error: error.code === "23505" ? "Another holding is already linked to that instrument." : error.message };
+  revalidatePath("/", "layout");
+  return {};
+}
+
+/** Removes the live-price link, back to a typed-in price. */
+export async function unlinkInstrument(assetId: string): Promise<Result> {
+  const supabase = await supabaseServer();
+  const { error } = await supabase.from("assets").update({ isin: null, nse_symbol: null, amfi_code: null }).eq("id", assetId);
+  if (error) return { error: error.message };
+  revalidatePath("/", "layout");
+  return {};
+}
+
 /** Sets today's price (and keeps the old one as previous close), or a balance-type value. */
 export async function setAssetPrice(assetId: string, rupees: number, balance: boolean): Promise<Result> {
   if (!(rupees > 0)) return { error: "Enter a price above zero." };

@@ -43,6 +43,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   const scope = group ? group.members : selected === "all" ? inBook.map((p) => p.id) : [selected];
 
   let rows: TxRow[] = [];
+  const feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][] = [];
   if (book === "inv" && scope.length) {
     const { data } = await supabase
       .from("transactions")
@@ -51,7 +52,17 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       .order("trade_date")
       .limit(50000);
     rows = (data ?? []) as unknown as TxRow[];
+    // daily prices for the linked holdings (by ISIN)
+    const isins = [...new Set(rows.map((r) => r.asset.isin).filter(Boolean))] as string[];
+    if (isins.length) {
+      const { data: fp } = await supabase
+        .from("instrument_prices")
+        .select("isin, close_paise, prev_close_paise, price_date")
+        .in("isin", isins);
+      (fp ?? []).forEach((p) => feed.push([p.isin, { close_paise: p.close_paise, prev_close_paise: p.prev_close_paise, price_date: p.price_date }]));
+    }
   }
+  const { data: idx } = await supabase.from("index_prices").select("index_code, close, prev_close, price_date").order("price_date", { ascending: false }).limit(12);
 
   return (
     <Shell
@@ -64,6 +75,8 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       selected={selected}
       tab={sp.tab ?? "ALL"}
       rows={rows}
+      feed={feed}
+      indices={(idx ?? []) as { index_code: string; close: number; prev_close: number | null; price_date: string }[]}
       assets={(assets ?? []) as AssetOption[]}
       asOf={todayIST()}
     />
