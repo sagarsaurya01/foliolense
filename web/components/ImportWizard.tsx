@@ -107,8 +107,10 @@ export function ImportWizard({
       else setResult({ added: r.added ?? 0, skipped: r.skipped ?? 0 });
     });
 
-  const tieTotal = tieouts.reduce((s, t) => s + t.close_value_paise, 0);
-  const builtTotal = rows ? rows.filter((r) => r.type === "buy").reduce((s, r) => s + r.amount_paise, 0) - rows.filter((r) => r.type === "sell").reduce((s, r) => s + r.amount_paise, 0) : 0;
+  // tie-out on units: a scheme matches when its closing balance equals units rebuilt from the file
+  const matched = tieouts.filter((t) => Math.abs(t.close_units - t.built_units) <= 0.001);
+  const partial = tieouts.filter((t) => t.built_units + 0.001 < t.close_units); // older units before this statement
+  const over = tieouts.filter((t) => t.built_units - 0.001 > t.close_units); // rebuilt more than held — a real problem
 
   return (
     <Modal wide onClose={onClose}>
@@ -171,9 +173,14 @@ export function ImportWizard({
             {rows && (
               <>
                 {tieouts.length > 0 && (
-                  <div className={`warn${Math.abs(tieTotal - builtTotal) <= Math.max(100, tieTotal * 0.0001) ? "" : " loss"}`}>
-                    Tie-out: statement value ₹{rupees(tieTotal)} · from the transactions ₹{rupees(builtTotal)} · difference ₹{rupees(Math.abs(tieTotal - builtTotal))}
-                    {Math.abs(tieTotal - builtTotal) > Math.max(100, tieTotal * 0.0001) ? " — check before importing" : " ✓"}
+                  <div className={`warn${over.length ? " loss" : ""}`}>
+                    {over.length > 0 ? (
+                      <>Check: {over.length} fund{over.length === 1 ? "" : "s"} rebuild to more units than the closing balance — the statement may be incomplete.</>
+                    ) : partial.length > 0 ? (
+                      <>Tie-out: {matched.length} of {tieouts.length} funds match their closing balance exactly ✓. {partial.length} hold units bought before this statement&apos;s start date, so their <b>cost will be partial</b> — import a CAS from inception for full cost.</>
+                    ) : (
+                      <>Tie-out ✓ — all {tieouts.length} funds match their closing balance; full history captured.</>
+                    )}
                   </div>
                 )}
                 <div className="note">{rows.length} rows read. New assets are created and linked to live prices by ISIN. Rows already imported are skipped.</div>

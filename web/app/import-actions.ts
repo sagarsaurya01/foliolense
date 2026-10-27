@@ -23,6 +23,8 @@ export interface ImportRow {
 export interface TieOut {
   name: string;
   isin?: string | null;
+  close_units: number;
+  built_units: number;
   close_value_paise: number;
 }
 
@@ -101,7 +103,8 @@ export async function importTransactions(
 
   const toInsert: Record<string, unknown>[] = [];
   for (const r of rows) {
-    if (seen.has(r.source_ref)) continue;
+    if (seen.has(r.source_ref)) continue; // already in the portfolio, or a duplicate within this file
+    seen.add(r.source_ref);
     const a = await resolveAsset(r);
     if (typeof a !== "string") {
       await supabase.from("imports").delete().eq("id", importId);

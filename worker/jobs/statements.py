@@ -51,7 +51,8 @@ def cas_to_rows(data: dict) -> dict:
             amfi = str(sch.get("amfi") or "").strip() or None
             name = (sch.get("scheme") or "").strip()
             account_key = folio_no or isin or name
-            for t in sch.get("transactions", []):
+            built_units = 0.0
+            for i, t in enumerate(sch.get("transactions", [])):
                 # the type may be a plain string or a TransactionType enum (PURCHASE_SIP / "TransactionType.PURCHASE_SIP")
                 raw = t.get("type")
                 tname = getattr(raw, "name", None) or str(raw or "").split(".")[-1]
@@ -64,6 +65,10 @@ def cas_to_rows(data: dict) -> dict:
                 amount = t.get("amount") or 0
                 nav = t.get("nav") or 0
                 u = abs(float(units or 0))
+                if kind in ("buy", "merge_in"):
+                    built_units += u
+                elif kind in ("sell", "merge_out"):
+                    built_units -= u
                 rows.append({
                     "date": str(t.get("date")),
                     "type": kind,
@@ -73,14 +78,17 @@ def cas_to_rows(data: dict) -> dict:
                     "amount_paise": abs(_paise(amount)),
                     "charges_paise": 0,
                     "account_key": account_key,
-                    "source_ref": _ref("cas", isin or name, t.get("date"), units, amount),
+                    # include the scheme-local index so two identical transactions don't collide
+                    "source_ref": _ref("cas", folio_no, isin or name, t.get("date"), units, amount, i),
                 })
-            val = sch.get("valuation") or {}
-            if val:
+            # tie-out on UNITS: the closing balance printed in the CAS vs units rebuilt from its transactions.
+            # They match only when the CAS covers full history; a part-period CAS legitimately shows fewer.
+            close_units = float(sch.get("close") or 0)
+            if close_units or built_units:
                 tieouts.append({
                     "name": name, "isin": isin,
-                    "close_units": float(val.get("value") and sch.get("close") or sch.get("close") or 0),
-                    "close_value_paise": _paise(val.get("value") or 0),
+                    "close_units": close_units, "built_units": round(built_units, 3),
+                    "close_value_paise": _paise((sch.get("valuation") or {}).get("value") or 0),
                 })
     investor = (data.get("investor_info") or {}).get("name")
     return {"rows": rows, "tieouts": tieouts, "account": investor}

@@ -34,9 +34,25 @@ def test_cas_transactions_become_buy_sell_rows_with_tieout():
     assert first["account_key"] == "12345/67"
     # a sell's amount is positive even though the CAS prints it negative
     assert out["rows"][2]["amount_paise"] == 4500000
-    assert out["tieouts"][0]["close_value_paise"] == 22671968
+    # tie-out compares closing units to units rebuilt from the transactions
+    assert out["tieouts"][0]["close_units"] == 2460.6
+    assert out["tieouts"][0]["built_units"] == round(1820.4 + 640.2 - 500, 3)
     # importing the same CAS twice must not double up
     assert len({r["source_ref"] for r in out["rows"]}) == 3
+
+
+def test_cas_identical_transactions_get_distinct_source_refs():
+    # a real CAS can list two identical purchases (same fund, date, units, amount); they must not collide
+    data = {"folios": [{"folio": "1/1", "schemes": [{
+        "scheme": "DSP Index", "isin": "INF740KA1W02", "amfi": "1", "close": 100,
+        "transactions": [
+            {"date": "2025-10-15", "type": "PURCHASE_SIP", "amount": 9999.5, "units": 977.42, "nav": 10.23},
+            {"date": "2025-10-15", "type": "PURCHASE_SIP", "amount": 9999.5, "units": 977.42, "nav": 10.23},
+        ],
+    }]}]}
+    out = statements.cas_to_rows(data)
+    assert len(out["rows"]) == 2
+    assert len({r["source_ref"] for r in out["rows"]}) == 2  # distinct
 
 
 def test_ecas_holdings_snapshot():
