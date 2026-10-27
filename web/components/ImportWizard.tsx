@@ -11,7 +11,8 @@ type Port = { id: string; name: string };
 export type ImportLogRow = { id: string; template: string; file_name: string; status: string; stats: { added?: number; skipped?: number } | null; created_at: string };
 
 const TEMPLATES = [
-  { id: "zerodha_tb", name: "Zerodha / broker tradebook", kind: "csv", fmt: "CSV / Excel", hint: "Zerodha Console → Reports → Tradebook → download. Groww/Upstox tradebooks work too." },
+  { id: "zerodha_tb", name: "Zerodha / broker tradebook", kind: "csv", fmt: "CSV / Excel", hint: "Zerodha Console → Reports → Tradebook → download. Anand Rathi / Groww trade sheets work too." },
+  { id: "zerodha_cn", name: "Zerodha contract note", kind: "pdf", fmt: "PDF", endpoint: "contractnote", hint: "The original contract-note PDF Zerodha emails you — no password needed." },
   { id: "cas", name: "Mutual Fund CAS (CAMS / KFintech)", kind: "pdf", fmt: "PDF", pw: true, hint: "Request a DETAILED statement from camsonline.com; it is emailed to you." },
   { id: "ecas", name: "Demat e-CAS (NSDL / CDSL)", kind: "pdf", fmt: "PDF", pw: true, hint: "The monthly e-CAS emailed by NSDL/CDSL. Loads holdings (no purchase history)." },
 ];
@@ -70,6 +71,16 @@ export function ImportWizard({
         if (out.error) setError(out.error);
         else if (!out.rows.length) setError("No buy/sell rows found in this file.");
         else setRows(out.rows);
+      } else if ("endpoint" in tpl && tpl.endpoint === "contractnote") {
+        const fd = new FormData();
+        fd.append("file", new Blob([file.buf]), file.name);
+        const res = await fetch(`${WORKER}/parse/contractnote`, { method: "POST", body: fd });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.detail || `Parser error (${res.status}). Is the worker running?`);
+        }
+        const d = await res.json();
+        setRows(d.rows as ImportRow[]);
       } else {
         const fd = new FormData();
         fd.append("file", new Blob([file.buf]), file.name);

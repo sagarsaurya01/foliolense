@@ -43,3 +43,26 @@ async def parse_cas(file: UploadFile, password: str = Form(""), kind: str = Form
     if kind == "ecas" or data.get("demat_accounts"):
         return {"mode": "holdings", **statements.ecas_to_holdings(data)}
     return {"mode": "transactions", **statements.cas_to_rows(data)}
+
+
+@app.post("/parse/contractnote")
+async def parse_contractnote(file: UploadFile) -> dict:
+    """Original broker contract-note PDF (no password). Detects the broker from the text."""
+    import pdfplumber
+
+    raw = await file.read()
+    try:
+        with pdfplumber.open(io.BytesIO(raw)) as pdf:
+            pages = [(p.extract_text() or "") for p in pdf.pages]
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not read this PDF: {e}") from e
+
+    head = "\n".join(pages[:2])
+    if "Zerodha" in head:
+        out = statements.zerodha_cn_parse(pages)
+        if not out["rows"]:
+            raise HTTPException(status_code=422, detail="No equity trades found in this Zerodha contract note.")
+        return {"mode": "transactions", "broker": "Zerodha", **out}
+    if "Anand Rathi" in head:
+        raise HTTPException(status_code=422, detail="This Anand Rathi note is mostly F&O; that is imported in the F&O book (coming in Phase 5). For Anand Rathi equity, use the Trade Details export.")
+    raise HTTPException(status_code=422, detail="Unrecognised contract note. Supported now: Zerodha equity contract notes.")

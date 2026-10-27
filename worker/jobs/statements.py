@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import re
 from decimal import Decimal
 from typing import Any
 
@@ -129,6 +130,49 @@ def ecas_to_holdings(data: dict) -> dict:
                 "value_paise": _paise(mf.get("value") or 0), "account_key": acct,
             })
     return {"holdings": holdings}
+
+
+# ---------- Zerodha contract note (PDF) ----------
+# Each settlement page carries "Trade Date: dd/mm/yyyy" and per-ISIN summary rows:
+#   ISIN SYMBOL buyQty buyWAP buyBrok buyWAPafter buyValue sellQty sellWAP sellBrok sellWAPafter sellValue netQty netObl
+_ZCN_ROW = re.compile(
+    r"^(INE[0-9A-Z]{9})\s+(\S+)\s+"
+    r"([\d,]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,]+\.\d{2})\s+"   # buy: qty wap brok wapAfter value
+    r"([\d,]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,]+\.\d{2})\s+")  # sell: qty wap brok wapAfter value
+
+
+def _n(s: str) -> float:
+    return float(str(s).replace(",", "").replace("−", "-"))
+
+
+def zerodha_cn_parse(pages: list[str]) -> dict:
+    """pages = each page's text, in order. Returns {rows}. One row per buy/sell of an ISIN per day."""
+    rows: list[dict] = []
+    date: str | None = None
+    for t in pages:
+        m = re.search(r"Trade Date:\s*(\d{2})/(\d{2})/(\d{4})", t)
+        if m:
+            date = f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+        if not date:
+            continue
+        for ln in t.splitlines():
+            mm = _ZCN_ROW.match(ln.strip())
+            if not mm:
+                continue
+            isin, sym = mm.group(1), mm.group(2)
+            buy_qty, buy_val = _n(mm.group(3)), _n(mm.group(7))
+            sell_qty, sell_val = _n(mm.group(8)), _n(mm.group(12))
+            for qty, val, kind in ((buy_qty, buy_val, "buy"), (sell_qty, sell_val, "sell")):
+                if qty <= 0:
+                    continue
+                rows.append({
+                    "date": date, "type": kind, "cls": "EQ",
+                    "isin": isin, "amfi_code": None, "symbol": sym, "name": sym,
+                    "units": qty, "nav_paise": _paise(val / qty), "amount_paise": _paise(val),
+                    "charges_paise": 0, "account_key": "zerodha",
+                    "source_ref": _ref("zcn", isin, date, kind, qty, val),
+                })
+    return {"rows": rows}
 
 
 # ---------- Zerodha tradebook (CSV, from Console) ----------

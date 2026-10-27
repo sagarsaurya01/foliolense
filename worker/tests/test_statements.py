@@ -94,3 +94,22 @@ def test_zerodha_tradebook_csv():
 def test_tradebook_rejects_wrong_file():
     out = statements.tradebook_to_rows("foo,bar\n1,2\n")
     assert out["rows"] == [] and "error" in out
+
+
+def test_zerodha_contract_note_parse():
+    # one settlement page with a buy and a sell summary row
+    pages = [
+        "Trade Date: 01/04/2026 Settlement No: 2026061\n"
+        "ISIN Security Name Quantity WAP Brokerage WAP Total Buy ...\n"
+        "INE549H01021 ARSSBL 26 447.1000 0.0000 447.1000 11624.60 0 0.0000 0.0000 0.0000 0.00 26 -11624.60\n"
+        "INE397D01024 BHARTIARTL 0 0.0000 0.0000 0.0000 0.00 10 1833.0000 0.0000 1833.0000 18330.00 -10 18330.00\n"
+    ]
+    out = statements.zerodha_cn_parse(pages)
+    assert len(out["rows"]) == 2
+    buy = next(r for r in out["rows"] if r["type"] == "buy")
+    assert buy["isin"] == "INE549H01021" and buy["symbol"] == "ARSSBL" and buy["units"] == 26
+    assert buy["amount_paise"] == 1162460 and buy["cls"] == "EQ"
+    sell = next(r for r in out["rows"] if r["type"] == "sell")
+    assert sell["symbol"] == "BHARTIARTL" and sell["units"] == 10 and sell["amount_paise"] == 1833000
+    # the trade date carries from the page header
+    assert all(r["date"] == "2026-04-01" for r in out["rows"])
