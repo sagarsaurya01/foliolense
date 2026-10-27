@@ -1,0 +1,33 @@
+name: Weekly backup
+
+# A free, off-site backup: dumps the whole Supabase database every Sunday and keeps the
+# last 12 as downloadable artifacts (90-day retention). Restore with `psql < dump.sql`.
+# Needs one repo secret: SUPABASE_DB_URL (Supabase -> Project Settings -> Database ->
+# Connection string -> URI, the session pooler/direct URL with the db password).
+
+on:
+  schedule:
+    - cron: "30 1 * * 0" # 01:30 UTC Sunday (07:00 IST)
+  workflow_dispatch: {}
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz
+          sudo mv supabase /usr/local/bin/
+      - name: Dump database
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP=$(date +%Y-%m-%d)
+          supabase db dump --db-url "$DB_URL" -f "foliolense-$STAMP.sql"
+          supabase db dump --db-url "$DB_URL" --data-only -f "foliolense-$STAMP-data.sql"
+          ls -lh foliolense-*.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foliolense-backup
+          path: foliolense-*.sql
+          retention-days: 90
