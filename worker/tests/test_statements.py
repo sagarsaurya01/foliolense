@@ -144,6 +144,8 @@ def test_fno_contract_note_parse():
     assert opt["underlying"] == "NIFTY" and opt["instrument"] == "CE" and opt["strike_paise"] == 2390000
     assert opt["side"] == "sell" and opt["quantity"] == 225 and opt["price_paise"] == 7767  # net rate
     assert opt["expiry"] == "2025-04-24" and opt["date"] == "2025-04-01" and opt["segment"] == "stock"
+    buy = next(t for t in out["trades"] if t["side"] == "buy")
+    assert buy["instrument"] == "CE" and buy["quantity"] == 75  # negative net total must not drop the buy
     fut = out["trades"][2]
     assert fut["instrument"] == "FUT" and fut["strike_paise"] is None and fut["underlying"] == "BANKNIFTY"
     assert len({t["source_ref"] for t in out["trades"]}) == 3

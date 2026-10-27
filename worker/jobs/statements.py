@@ -197,7 +197,8 @@ _FO_ROW = re.compile(
     r"^\d{10,}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+"
     r"(OPTIDX|OPTSTK|FUTIDX|FUTSTK)\s+(\S+)\s+(\d{2}[A-Z]{3}\d{2})\s+"
     r"(?:([\d.]+)\s+(CE|PE)\s+)?"
-    r"(BUY|SELL)\s+(\d+)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+([\d,.]+)\s+(\S+)")
+    # a BUY row's net total is printed negative (money paid out), so allow a leading minus
+    r"(BUY|SELL)\s+(\d+)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+([−-]?[\d,.]+)\s+(\S+)")
 
 
 def _ddmmmyy(s: str) -> str:
