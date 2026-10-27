@@ -2,6 +2,8 @@ from jobs import statements
 
 
 def test_cas_transactions_become_buy_sell_rows_with_tieout():
+    # casparser's model_dump keeps the enum: "TransactionType.PURCHASE_SIP". The parser must read
+    # both that form and a plain "PURCHASE" string (regression: a real CAS dropped every row once).
     data = {
         "investor_info": {"name": "Rohan Mehra"},
         "folios": [{
@@ -13,8 +15,8 @@ def test_cas_transactions_become_buy_sell_rows_with_tieout():
                 "valuation": {"value": 226719.68},
                 "transactions": [
                     {"date": "2022-04-05", "type": "PURCHASE", "amount": 100000, "units": 1820.4, "nav": 54.93},
-                    {"date": "2024-09-10", "type": "PURCHASE_SIP", "amount": 50000, "units": 640.2, "nav": 78.1},
-                    {"date": "2024-09-10", "type": "STAMP_DUTY_TAX", "amount": 2.5, "units": 0, "nav": 0},
+                    {"date": "2024-09-10", "type": "TransactionType.PURCHASE_SIP", "amount": 50000, "units": 640.2, "nav": 78.1},
+                    {"date": "2024-09-10", "type": "TransactionType.STAMP_DUTY_TAX", "amount": 2.5, "units": 0, "nav": 0},
                     {"date": "2025-01-10", "type": "REDEMPTION", "amount": -45000, "units": -500, "nav": 90},
                 ],
             }],

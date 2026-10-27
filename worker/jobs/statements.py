@@ -52,9 +52,14 @@ def cas_to_rows(data: dict) -> dict:
             name = (sch.get("scheme") or "").strip()
             account_key = folio_no or isin or name
             for t in sch.get("transactions", []):
-                kind = CAS_TYPE.get(str(t.get("type") or "").upper())
+                # the type may be a plain string or a TransactionType enum (PURCHASE_SIP / "TransactionType.PURCHASE_SIP")
+                raw = t.get("type")
+                tname = getattr(raw, "name", None) or str(raw or "").split(".")[-1]
+                kind = CAS_TYPE.get(tname.upper())
                 units = t.get("units")
-                if kind is None or units in (None, 0) and kind not in ("dividend",):
+                if kind is None:
+                    continue
+                if kind != "dividend" and units in (None, 0):
                     continue
                 amount = t.get("amount") or 0
                 nav = t.get("nav") or 0
