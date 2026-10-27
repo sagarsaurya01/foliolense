@@ -113,3 +113,18 @@ def test_zerodha_contract_note_parse():
     assert sell["symbol"] == "BHARTIARTL" and sell["units"] == 10 and sell["amount_paise"] == 1833000
     # the trade date carries from the page header
     assert all(r["date"] == "2026-04-01" for r in out["rows"])
+
+
+def test_anand_rathi_cn_multiword_name():
+    # Anand Rathi equity note: full security name with spaces, 4-decimal amounts
+    pages = [
+        "TRADE DATE 28/07/2025 SETTLEMENT DATE. 29/07/2025\n"
+        "ISIN Security Name Quantity WAP Brokerage WAP Total BUY ...\n"
+        "INE081A01020 TATA STEEL LIMITED (#) 0 0.0000 0.0000 0.0000 0.0000 2 161.9900 4.0500 157.9400 315.8800 -2 315.8800\n"
+    ]
+    out = statements.broker_cn_parse(pages)
+    assert len(out["rows"]) == 1
+    r = out["rows"][0]
+    assert r["type"] == "sell" and r["isin"] == "INE081A01020"
+    assert r["name"] == "TATA STEEL LIMITED (#)" and r["units"] == 2 and r["amount_paise"] == 31588
+    assert r["date"] == "2025-07-28"

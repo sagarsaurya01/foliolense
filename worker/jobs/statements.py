@@ -132,47 +132,61 @@ def ecas_to_holdings(data: dict) -> dict:
     return {"holdings": holdings}
 
 
-# ---------- Zerodha contract note (PDF) ----------
-# Each settlement page carries "Trade Date: dd/mm/yyyy" and per-ISIN summary rows:
-#   ISIN SYMBOL buyQty buyWAP buyBrok buyWAPafter buyValue sellQty sellWAP sellBrok sellWAPafter sellValue netQty netObl
-_ZCN_ROW = re.compile(
-    r"^(INE[0-9A-Z]{9})\s+(\S+)\s+"
-    r"([\d,]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,]+\.\d{2})\s+"   # buy: qty wap brok wapAfter value
-    r"([\d,]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d,]+\.\d{2})\s+")  # sell: qty wap brok wapAfter value
+# ---------- broker contract note (PDF): Zerodha and Anand Rathi equity ----------
+# Both print a per-ISIN summary row under a "Trade Date: dd/mm/yyyy" page:
+#   ISIN  <security name>  buyQty buyWAP buyBrok buyWAPafter buyValue  sellQty sellWAP sellBrok sellWAPafter sellValue  netQty netObl
+# Zerodha uses a one-word symbol; Anand Rathi uses a full name with spaces and 4-decimal amounts.
+_ISIN = re.compile(r"^INE[0-9A-Z]{9}$")
 
 
 def _n(s: str) -> float:
     return float(str(s).replace(",", "").replace("−", "-"))
 
 
-def zerodha_cn_parse(pages: list[str]) -> dict:
-    """pages = each page's text, in order. Returns {rows}. One row per buy/sell of an ISIN per day."""
+def _is_num(s: str) -> bool:
+    return bool(re.match(r"^-?[\d,]+(\.\d+)?$", s.replace("−", "-")))
+
+
+def broker_cn_parse(pages: list[str]) -> dict:
+    """pages = each page's text, in order. Returns {rows}: one per buy/sell of an ISIN per day."""
     rows: list[dict] = []
     date: str | None = None
     for t in pages:
-        m = re.search(r"Trade Date:\s*(\d{2})/(\d{2})/(\d{4})", t)
+        m = re.search(r"(?:Trade Date|TRADE DATE)[:.]?\s*(\d{2})/(\d{2})/(\d{4})", t)
         if m:
             date = f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
         if not date:
             continue
         for ln in t.splitlines():
-            mm = _ZCN_ROW.match(ln.strip())
-            if not mm:
+            toks = ln.split()
+            if len(toks) < 13 or not _ISIN.match(toks[0]):
                 continue
-            isin, sym = mm.group(1), mm.group(2)
-            buy_qty, buy_val = _n(mm.group(3)), _n(mm.group(7))
-            sell_qty, sell_val = _n(mm.group(8)), _n(mm.group(12))
+            # the security name is the text between the ISIN and the first numeric column
+            i = next((k for k in range(1, len(toks)) if _is_num(toks[k])), None)
+            if i is None or i < 2:
+                continue
+            name = " ".join(toks[1:i]).strip()
+            nums = [x for x in toks[i:] if _is_num(x)]
+            if len(nums) < 12:
+                continue
+            # nums: buyQty buyWAP buyBrok buyWAPafter buyValue sellQty sellWAP sellBrok sellWAPafter sellValue netQty netObl
+            buy_qty, buy_val = _n(nums[0]), _n(nums[4])
+            sell_qty, sell_val = _n(nums[5]), _n(nums[9])
             for qty, val, kind in ((buy_qty, buy_val, "buy"), (sell_qty, sell_val, "sell")):
-                if qty <= 0:
+                if qty <= 0 or val <= 0:
                     continue
                 rows.append({
                     "date": date, "type": kind, "cls": "EQ",
-                    "isin": isin, "amfi_code": None, "symbol": sym, "name": sym,
+                    "isin": toks[0], "amfi_code": None, "symbol": name, "name": name,
                     "units": qty, "nav_paise": _paise(val / qty), "amount_paise": _paise(val),
-                    "charges_paise": 0, "account_key": "zerodha",
-                    "source_ref": _ref("zcn", isin, date, kind, qty, val),
+                    "charges_paise": 0, "account_key": "broker",
+                    "source_ref": _ref("cn", toks[0], date, kind, qty, val),
                 })
     return {"rows": rows}
+
+
+# kept for callers/tests that used the old name
+zerodha_cn_parse = broker_cn_parse
 
 
 # ---------- Zerodha tradebook (CSV, from Console) ----------

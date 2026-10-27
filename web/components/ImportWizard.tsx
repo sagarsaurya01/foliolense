@@ -12,7 +12,7 @@ export type ImportLogRow = { id: string; template: string; file_name: string; st
 
 const TEMPLATES = [
   { id: "zerodha_tb", name: "Zerodha / broker tradebook", kind: "csv", fmt: "CSV / Excel", hint: "Zerodha Console → Reports → Tradebook → download. Anand Rathi / Groww trade sheets work too." },
-  { id: "zerodha_cn", name: "Zerodha contract note", kind: "pdf", fmt: "PDF", endpoint: "contractnote", hint: "The original contract-note PDF Zerodha emails you — no password needed." },
+  { id: "zerodha_cn", name: "Broker contract note (Zerodha / Anand Rathi)", kind: "pdf", fmt: "PDF", endpoint: "contractnote", hint: "The original equity contract-note PDF your broker emails you — no password. (F&O notes come in Phase 5.)" },
   { id: "cas", name: "Mutual Fund CAS (CAMS / KFintech)", kind: "pdf", fmt: "PDF", pw: true, hint: "Request a DETAILED statement from camsonline.com; it is emailed to you." },
   { id: "ecas", name: "Demat e-CAS (NSDL / CDSL)", kind: "pdf", fmt: "PDF", pw: true, hint: "The monthly e-CAS emailed by NSDL/CDSL. Loads holdings (no purchase history)." },
 ];

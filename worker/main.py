@@ -58,11 +58,12 @@ async def parse_contractnote(file: UploadFile) -> dict:
         raise HTTPException(status_code=422, detail=f"Could not read this PDF: {e}") from e
 
     head = "\n".join(pages[:2])
-    if "Zerodha" in head:
-        out = statements.zerodha_cn_parse(pages)
-        if not out["rows"]:
-            raise HTTPException(status_code=422, detail="No equity trades found in this Zerodha contract note.")
-        return {"mode": "transactions", "broker": "Zerodha", **out}
-    if "Anand Rathi" in head:
-        raise HTTPException(status_code=422, detail="This Anand Rathi note is mostly F&O; that is imported in the F&O book (coming in Phase 5). For Anand Rathi equity, use the Trade Details export.")
-    raise HTTPException(status_code=422, detail="Unrecognised contract note. Supported now: Zerodha equity contract notes.")
+    broker = "Zerodha" if "Zerodha" in head else "Anand Rathi" if "Anand Rathi" in head else None
+    if not broker:
+        raise HTTPException(status_code=422, detail="Unrecognised contract note. Supported: Zerodha and Anand Rathi equity contract notes.")
+    out = statements.broker_cn_parse(pages)
+    if not out["rows"]:
+        raise HTTPException(status_code=422, detail=(
+            f"No equity trades found in this {broker} contract note. "
+            "If it is an F&O (futures/options) note, that is imported in the F&O book (Phase 5)."))
+    return {"mode": "transactions", "broker": broker, **out}
