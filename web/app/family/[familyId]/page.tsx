@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { ImportLogRow } from "@/components/ImportWizard";
 import { Shell, type ShellGroup } from "@/components/Shell";
 import type { AssetOption } from "@/components/TxDialog";
 import { todayIST, type TxRow } from "@/lib/holdings";
@@ -63,6 +64,11 @@ export default async function FamilyPage({ params, searchParams }: Props) {
     }
   }
   const { data: idx } = await supabase.from("index_prices").select("index_code, close, prev_close, price_date").order("price_date", { ascending: false }).limit(12);
+  const { data: importLog } = await supabase
+    .from("imports")
+    .select("id, template, file_name, status, stats, created_at")
+    .order("created_at", { ascending: false })
+    .limit(30);
 
   return (
     <Shell
@@ -77,6 +83,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       rows={rows}
       feed={feed}
       indices={(idx ?? []) as { index_code: string; close: number; prev_close: number | null; price_date: string }[]}
+      importLog={(importLog ?? []) as ImportLogRow[]}
       assets={(assets ?? []) as AssetOption[]}
       asOf={todayIST()}
     />

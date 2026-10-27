@@ -12,6 +12,7 @@ import { LinkPrice } from "./LinkPrice";
 import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
 import { ImportOpening } from "./ImportOpening";
+import { ImportWizard, type ImportLogRow } from "./ImportWizard";
 import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
 import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
@@ -34,6 +35,7 @@ type Props = {
   rows: TxRow[];
   feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][];
   indices: { index_code: string; close: number; prev_close: number | null; price_date: string }[];
+  importLog: ImportLogRow[];
   assets: AssetOption[];
   asOf: string;
 };
@@ -45,6 +47,7 @@ type Dialog =
   | { kind: "link"; h: Holding }
   | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
   | { kind: "import" }
+  | { kind: "importStatements" }
   | { kind: "analytics" }
   | { kind: "addPortfolio" }
   | null;
@@ -52,7 +55,7 @@ type Dialog =
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, assets, asOf }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, feed, indices, importLog, assets, asOf }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -184,8 +187,8 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               <button className="car" onClick={toggle("import")} aria-expanded={open === "import"}>Import</button>
               {open === "import" && (
                 <div className="panel">
-                  <button className="it" onClick={() => show({ kind: "import" })} disabled={book !== "inv"}>Opening balances (Excel)</button>
-                  <button className="it" onClick={soon("Statement import (CAS, contract notes)", 3)}>Statements (CAS, contract notes)</button>
+                  <button className="it" onClick={() => show({ kind: "importStatements" })} disabled={book !== "inv" || !invPorts.length}>Statements (tradebook, CAS, e-CAS)</button>
+                  <button className="it" onClick={() => show({ kind: "import" })} disabled={book !== "inv" || !invPorts.length}>Opening balances (Excel)</button>
                 </div>
               )}
             </div>
@@ -332,6 +335,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                     <div className="panel">
                       <button className="it" onClick={() => show({ kind: "list" })}>View All Transactions</button>
                       <button className="it" onClick={() => show({ kind: "tx" })} disabled={!invPorts.length}>Add a transaction</button>
+                      <button className="it" onClick={() => show({ kind: "importStatements" })}>Import statements (tradebook, CAS)</button>
                       <button className="it" onClick={() => show({ kind: "import" })}>Import opening balances (Excel)</button>
                       <button className="it" onClick={() => show({ kind: "addPortfolio" })}>Add portfolio or group</button>
                       {thingToEdit && (
@@ -473,6 +477,15 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       )}
       {dlg?.kind === "import" && (
         <ImportOpening familyId={family.id} portfolios={invPorts.map((p) => p.name)} onClose={() => setDlg(null)} onDone={done} />
+      )}
+      {dlg?.kind === "importStatements" && (
+        <ImportWizard
+          portfolios={invPorts.map((p) => ({ id: p.id, name: p.name }))}
+          defaultPortfolio={current?.id}
+          log={importLog}
+          onClose={() => setDlg(null)}
+          onDone={done}
+        />
       )}
       {dlg?.kind === "analytics" && (
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
