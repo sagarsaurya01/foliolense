@@ -22,10 +22,12 @@ def test_cas_transactions_become_buy_sell_rows_with_tieout():
             }],
         }],
     }
+    data["folios"][0]["schemes"][0]["type"] = "EQUITY"
     out = statements.cas_to_rows(data)
     assert out["account"] == "Rohan Mehra"
     kinds = [r["type"] for r in out["rows"]]
     assert kinds == ["buy", "buy", "sell"]  # stamp-duty tax line dropped
+    assert all(r["cls"] == "MFE" for r in out["rows"])  # equity fund -> Mutual Funds (Equity)
     first = out["rows"][0]
     assert first["isin"] == "INF879O01027"
     assert first["amfi_code"] == "122639"

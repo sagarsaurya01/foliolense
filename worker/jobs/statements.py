@@ -51,6 +51,9 @@ def cas_to_rows(data: dict) -> dict:
             amfi = str(sch.get("amfi") or "").strip() or None
             name = (sch.get("scheme") or "").strip()
             account_key = folio_no or isin or name
+            # equity-oriented funds -> MFE, debt-oriented -> MFD (decides the tab and the tax rule)
+            stype = str(sch.get("type") or "").upper()
+            cls = "MFD" if any(w in stype for w in ("DEBT", "LIQUID", "BOND", "GILT", "INCOME", "MONEY")) else "MFE"
             built_units = 0.0
             for i, t in enumerate(sch.get("transactions", [])):
                 # the type may be a plain string or a TransactionType enum (PURCHASE_SIP / "TransactionType.PURCHASE_SIP")
@@ -71,7 +74,7 @@ def cas_to_rows(data: dict) -> dict:
                     built_units -= u
                 rows.append({
                     "date": str(t.get("date")),
-                    "type": kind,
+                    "type": kind, "cls": cls,
                     "isin": isin, "amfi_code": amfi, "symbol": None, "name": name,
                     "units": u if kind != "dividend" else 0,
                     "nav_paise": _paise(nav) if nav else 0,
