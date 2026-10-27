@@ -99,10 +99,6 @@ export function ImportWizard({
     start(async () => {
       const sha = await sha256(file!.buf);
       const r = await importTransactions(portfolioId, tpl.name, file!.name, sha, rows!);
-      if (r.duplicateFile) {
-        setError("This exact file was already imported. Nothing added.");
-        return;
-      }
       if (r.error) setError(r.error);
       else setResult({ added: r.added ?? 0, skipped: r.skipped ?? 0 });
     });

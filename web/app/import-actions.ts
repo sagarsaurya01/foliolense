@@ -41,7 +41,7 @@ export async function importTransactions(
   fileName: string,
   fileSha: string,
   rows: ImportRow[],
-): Promise<{ error?: string; added?: number; skipped?: number; importId?: string; duplicateFile?: boolean }> {
+): Promise<{ error?: string; added?: number; skipped?: number; importId?: string }> {
   if (!rows.length) return { error: "Nothing to import." };
   for (const r of rows) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) return { error: `Bad date "${r.date}" for ${r.name}.` };
@@ -52,15 +52,12 @@ export async function importTransactions(
   if (!auth.user) return { error: "Sign in again." };
   const uid = auth.user.id;
 
-  // same file already imported?
-  if (fileSha) {
-    const { data: prev } = await supabase.from("imports").select("id").eq("owner_id", uid).eq("file_sha256", fileSha).eq("status", "completed").maybeSingle();
-    if (prev) return { duplicateFile: true };
-  }
-
+  // The per-transaction source_ref check below is what actually prevents double-counting, and it works
+  // across re-imports and deletions. The file hash is only recorded for the log; it never blocks, so the
+  // same statement can go into a different portfolio, or be re-imported after its transactions were removed.
   const { data: imp, error: impErr } = await supabase
     .from("imports")
-    .insert({ owner_id: uid, template, file_name: fileName, file_sha256: fileSha || null, status: "parsing" })
+    .insert({ owner_id: uid, template, file_name: fileName, file_sha256: fileSha || null, portfolio_id: portfolioId, status: "parsing" })
     .select("id")
     .single();
   if (impErr) return { error: impErr.message };
