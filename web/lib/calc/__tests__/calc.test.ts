@@ -132,15 +132,16 @@ describe("figures", () => {
     expect(f.todayPct).toBeCloseTo((10000 / 110000) * 100);
   });
 
-  it("leaves value blank without a price, and totals stay blank too", () => {
+  it("counts an unpriced holding at its cost so one gap doesn't blank the total", () => {
     const { lots } = buildLots([tx("buy", "2024-01-01", 10, 100)]);
-    const a = figures(lots, false, {});
+    const a = figures(lots, false, {}); // no price
     const b = figures(lots, false, { pricePaise: 12000 });
-    expect(a.currentPaise).toBeNull();
+    expect(a.currentPaise).toBeNull(); // the holding itself still shows no price
     const s = sumFigures([a, b]);
     expect(s.investedPaise).toBe(200000);
-    expect(s.currentPaise).toBeNull();
+    expect(s.currentPaise).toBe(100000 + 120000); // a at cost, b at market
     expect(s.pricedCount).toBe(1);
+    expect(s.unpricedCount).toBe(1);
   });
 
   it("totals percentages from rupees, not by adding percentages", () => {

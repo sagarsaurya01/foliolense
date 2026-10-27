@@ -75,7 +75,9 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
   const feedMap = useMemo<FeedPrices>(() => new Map(feed), [feed]);
-  const holdings = useMemo(() => buildHoldings(rows, asOf, feedMap), [rows, asOf, feedMap]);
+  const allHoldings = useMemo(() => buildHoldings(rows, asOf, feedMap), [rows, asOf, feedMap]);
+  // hide fully-exited positions (sold out: no units and no cost left) from the live view
+  const holdings = useMemo(() => allHoldings.filter((h) => h.balance || h.fig.qty > 1e-6 || h.fig.investedPaise > 0), [allHoldings]);
   const niftyRow = (code: string) => indices.find((i) => i.index_code === code);
   const total = sumFigures(holdings.map((h) => h.fig));
   const xirr = useMemo(() => xirrPct(rows, holdings, asOf), [rows, holdings, asOf]);
@@ -399,7 +401,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="stat">
                   <span className="label">Current value</span>
                   <span className="v num">{total.currentPaise == null ? "—" : `₹${rupees(total.currentPaise)}`}</span>
-                  <span className="s mut">{total.currentPaise == null ? `${unpriced} without a price` : shortRupees(total.currentPaise)}</span>
+                  <span className="s mut">{unpriced > 0 ? `${unpriced} held at cost — set a price` : total.currentPaise == null ? "—" : shortRupees(total.currentPaise)}</span>
                 </div>
                 <div className="stat"><span className="label">Today&apos;s gain</span><span className={`v num ${tone(total.todayPaise)}`}>{total.todayPaise == null ? "—" : `₹${rupees(total.todayPaise)}`}</span><span className={`s num ${tone(total.todayPct)}`}>{pct(total.todayPct)}</span></div>
                 <div className="stat"><span className="label">Unrealised gain</span><span className={`v num ${tone(total.unrealisedPaise)}`}>{total.unrealisedPaise == null ? "—" : `₹${rupees(total.unrealisedPaise)}`}</span><span className={`s num ${tone(total.unrealisedPct)}`}>{pct(total.unrealisedPct)}</span></div>
