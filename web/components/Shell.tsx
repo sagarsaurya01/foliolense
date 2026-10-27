@@ -13,6 +13,7 @@ import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
 import { ImportOpening } from "./ImportOpening";
 import { ImportWizard, type ImportLogRow } from "./ImportWizard";
+import { Reports } from "./Reports";
 import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
 import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
@@ -48,6 +49,7 @@ type Dialog =
   | { kind: "rename" | "delete"; what: "family" | "portfolio" | "group"; id: string; name: string }
   | { kind: "import" }
   | { kind: "importStatements" }
+  | { kind: "reports" }
   | { kind: "analytics" }
   | { kind: "addPortfolio" }
   | null;
@@ -366,7 +368,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                     </div>
                   )}
                 </div>
-                <button className="mb" onClick={soon("Reports", 4)}>Reports</button>
+                <button className="mb" onClick={() => show({ kind: "reports" })}>Reports</button>
                 <div className="dd hov">
                   <button className="anl" title="Analytics" aria-label="Open analytics" onClick={() => show({ kind: "analytics" })}>
                     <svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true">
@@ -497,6 +499,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       {dlg?.kind === "analytics" && (
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
       )}
+      {dlg?.kind === "reports" && <Reports rows={rows} title={viewName} portName={portName} onClose={() => setDlg(null)} />}
       {dlg?.kind === "addPortfolio" && (
         <AddPortfolio
           familyId={family.id}
