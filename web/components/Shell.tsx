@@ -11,6 +11,7 @@ import { buildHoldings, xirrPct, type FeedPrices, type Holding, type TxRow } fro
 import { LinkPrice } from "./LinkPrice";
 import { AnalyticsCards, AnalyticsModal } from "./Analytics";
 import { HoldingsTable } from "./Holdings";
+import { CorpActions } from "./CorpActions";
 import { FnoBook, type FnoTradeRow } from "./FnoBook";
 import { FnoImport } from "./FnoImport";
 import { ImportOpening } from "./ImportOpening";
@@ -54,6 +55,7 @@ type Dialog =
   | { kind: "importStatements" }
   | { kind: "importFno" }
   | { kind: "reports" }
+  | { kind: "corpActions" }
   | { kind: "analytics" }
   | { kind: "addPortfolio" }
   | null;
@@ -191,7 +193,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="panel">
                   <div className="hd label">Connect a broker</div>
                   {["Zerodha", "Dhan", "Upstox", "Angel One"].map((b) => (
-                    <button key={b} className="it" onClick={soon(`${b} connect`, 6)}>{b}</button>
+                    <button key={b} className="it" onClick={() => { setOpen(null); say(`${b} auto-sync needs a paid broker API subscription — for now, import ${b}'s contract note or tradebook`); }}>{b}</button>
                   ))}
                 </div>
               )}
@@ -211,7 +213,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               {open === "tools" && (
                 <div className="panel">
                   <button className="it" onClick={soon("Global Reports", 4)}>Global Reports</button>
-                  <button className="it" onClick={soon("Corporate Actions", 6)}>Corporate Actions</button>
+                  <button className="it" onClick={() => show({ kind: "corpActions" })}>Corporate Actions</button>
                   <button className="it" onClick={soon("Global Asset Search", 2)}>Global Asset Search</button>
                   <button className="it" onClick={soon("Reconcile Holdings", 3)}>Reconcile Holdings</button>
                 </div>
@@ -528,6 +530,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
       )}
       {dlg?.kind === "reports" && <Reports rows={rows} title={viewName} portName={portName} onClose={() => setDlg(null)} />}
+      {dlg?.kind === "corpActions" && <CorpActions onClose={() => setDlg(null)} onDone={done} />}
       {dlg?.kind === "importFno" && current && book === "fno" && (
         <FnoImport portfolioId={current.id} portfolioName={current.name} onClose={() => setDlg(null)} onDone={done} />
       )}
