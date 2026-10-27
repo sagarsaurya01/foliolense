@@ -128,3 +128,24 @@ def test_anand_rathi_cn_multiword_name():
     assert r["type"] == "sell" and r["isin"] == "INE081A01020"
     assert r["name"] == "TATA STEEL LIMITED (#)" and r["units"] == 2 and r["amount_paise"] == 31588
     assert r["date"] == "2025-07-28"
+
+
+def test_fno_contract_note_parse():
+    pages = [
+        "TRADE DATE 01/04/2025 SETTLEMENT DATE. 02/04/2025\n"
+        "Order Trade ... Security Buy/Sell Quantity Gross Brok NetRate Close NetTotal Remarks\n"
+        "1200000155438849 13:57:47 4037645 13:57:48 OPTIDX NIFTY 24APR25 23900.00 CE SELL 225 79.0000 1.3333 77.6667 80.0500 17475.0000 NSEFO\n"
+        "1500000156067010 13:59:00 3221317 13:59:00 OPTIDX NIFTY 24APR25 24400.00 CE BUY 75 23.9500 1.3333 25.2833 24.6500 1896.2500 NSEFO\n"
+        "1200000999 10:00:00 123 10:00:01 FUTIDX BANKNIFTY 24APR25 BUY 35 56120.00 2.0 56122.00 56200.00 1964270.00 NSEFO\n"
+    ]
+    out = statements.fno_cn_parse(pages)
+    assert len(out["trades"]) == 3
+    opt = out["trades"][0]
+    assert opt["underlying"] == "NIFTY" and opt["instrument"] == "CE" and opt["strike_paise"] == 2390000
+    assert opt["side"] == "sell" and opt["quantity"] == 225 and opt["price_paise"] == 7767  # net rate
+    assert opt["expiry"] == "2025-04-24" and opt["date"] == "2025-04-01" and opt["segment"] == "stock"
+    buy = next(t for t in out["trades"] if t["side"] == "buy")
+    assert buy["instrument"] == "CE" and buy["quantity"] == 75  # negative net total must not drop the buy
+    fut = out["trades"][2]
+    assert fut["instrument"] == "FUT" and fut["strike_paise"] is None and fut["underlying"] == "BANKNIFTY"
+    assert len({t["source_ref"] for t in out["trades"]}) == 3

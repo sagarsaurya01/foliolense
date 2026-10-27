@@ -189,6 +189,48 @@ def broker_cn_parse(pages: list[str]) -> dict:
 zerodha_cn_parse = broker_cn_parse
 
 
+# ---------- F&O contract note (PDF): Anand Rathi / Zerodha derivatives ----------
+_MONTHS = {m: i for i, m in enumerate(
+    ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"], 1)}
+# per-order F&O row: orderNo time tradeNo time  INSTR UNDERLYING DDMMMYY [STRIKE CE|PE] BUY|SELL qty gross brok NETRATE close NETTOTAL remark
+_FO_ROW = re.compile(
+    r"^\d{10,}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+"
+    r"(OPTIDX|OPTSTK|FUTIDX|FUTSTK)\s+(\S+)\s+(\d{2}[A-Z]{3}\d{2})\s+"
+    r"(?:([\d.]+)\s+(CE|PE)\s+)?"
+    # a BUY row's net total is printed negative (money paid out), so allow a leading minus
+    r"(BUY|SELL)\s+(\d+)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+([−-]?[\d,.]+)\s+(\S+)")
+
+
+def _ddmmmyy(s: str) -> str:
+    return f"20{s[5:7]}-{_MONTHS[s[2:5]]:02d}-{s[0:2]}"
+
+
+def fno_cn_parse(pages: list[str]) -> dict:
+    """Original F&O contract-note PDF -> trades (one per order). Handles index/stock options and futures."""
+    trades: list[dict] = []
+    date: str | None = None
+    for t in pages:
+        m = re.search(r"(?:Trade Date|TRADE DATE)[:.]?\s*(\d{2})/(\d{2})/(\d{4})", t)
+        if m:
+            date = f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+        if not date:
+            continue
+        for ln in t.splitlines():
+            mm = _FO_ROW.match(ln.strip())
+            if not mm:
+                continue
+            instr_raw, underlying, exp, strike, cepe, side, qty, net_rate, _net_total, remark = mm.groups()
+            instrument = cepe if cepe else "FUT"
+            segment = "stock" if remark.upper() in ("NSEFO", "BSEFO") else "other"
+            trades.append({
+                "underlying": underlying, "instrument": instrument, "expiry": _ddmmmyy(exp),
+                "strike_paise": _paise(strike) if strike else None, "segment": segment,
+                "date": date, "side": side.lower(), "quantity": int(qty), "price_paise": _paise(net_rate),
+                "source_ref": _ref("fno", underlying, instrument, exp, strike or "", side, qty, net_rate, date, len(trades)),
+            })
+    return {"trades": trades}
+
+
 # ---------- Zerodha tradebook (CSV, from Console) ----------
 def tradebook_to_rows(text: str) -> dict:
     """Zerodha equity tradebook CSV -> buy/sell rows. Columns vary slightly; we read by header name."""
