@@ -137,6 +137,34 @@ export async function setTheme(theme: Theme): Promise<Result> {
   return {};
 }
 
+const YEAR = 60 * 60 * 24 * 365;
+
+export type AmountFmt = "full" | "short";
+export async function setAmountFormat(mode: AmountFmt): Promise<Result> {
+  const jar = await cookies();
+  jar.set("amt_fmt", mode === "short" ? "short" : "full", { path: "/", maxAge: YEAR, sameSite: "lax" });
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export type RiskLevel = "conservative" | "balanced" | "aggressive";
+export async function setRisk(age: number, level: RiskLevel): Promise<Result> {
+  if (!["conservative", "balanced", "aggressive"].includes(level)) return { error: "Pick a risk level." };
+  const a = Math.max(18, Math.min(99, Math.round(Number(age) || 0)));
+  const jar = await cookies();
+  jar.set("risk", JSON.stringify({ age: a, level }), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  revalidatePath("/", "layout");
+  return {};
+}
+
+export async function setDefaultView(familyId: string, book: "inv" | "fno"): Promise<Result> {
+  const jar = await cookies();
+  if (!familyId) jar.delete("landing");
+  else jar.set("landing", JSON.stringify({ familyId, book: book === "fno" ? "fno" : "inv" }), { path: "/", maxAge: YEAR, sameSite: "lax" });
+  revalidatePath("/", "layout");
+  return {};
+}
+
 export async function signOut() {
   const supabase = await supabaseServer();
   await supabase.auth.signOut();
