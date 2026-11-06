@@ -12,7 +12,8 @@ import { buildHoldings, xirrPct, type FeedPrices, type Holding, type TxRow } fro
 import { LinkPrice } from "./LinkPrice";
 import { AnalyticsModal } from "./Analytics";
 import { Hindsight } from "./Hindsight";
-import { Review } from "./Review";
+import { Review, ReviewBody } from "./Review";
+import { CaView } from "./CaView";
 import { HoldingsTable } from "./Holdings";
 import { CorpActions } from "./CorpActions";
 import { FnoBook, type FnoTradeRow } from "./FnoBook";
@@ -77,6 +78,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const [showType, setShowType] = useState("");
   const [assetQ, setAssetQ] = useState("");
   const [dlg, setDlg] = useState<Dialog>(null);
+  const [topView, setTopView] = useState<"owner" | "advisor" | "ca">("owner");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const famPorts = portfolios.filter((p) => p.family_id === family.id);
@@ -192,6 +194,13 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       <header className="top">
         <div className="top-in pad">
           <Logo />
+          {book === "inv" && (
+            <div className="vtoggle" role="tablist" aria-label="View">
+              {([["owner", "Owner"], ["advisor", "Advisor"], ["ca", "CA"]] as const).map(([v, label]) => (
+                <button key={v} type="button" role="tab" aria-selected={topView === v} className={topView === v ? "on" : ""} onClick={() => setTopView(v)}>{label}</button>
+              ))}
+            </div>
+          )}
           <nav className="menu" aria-label="Main menu">
             <div className="dd">
               <button className="car" onClick={toggle("api")} aria-expanded={open === "api"}>API</button>
@@ -215,7 +224,6 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
             </div>
             <button onClick={() => show({ kind: "analytics" })} disabled={book !== "inv"}>Analytics <span className="new">NEW</span></button>
             <button onClick={() => show({ kind: "hindsight" })} disabled={book !== "inv"}>Hindsight <span className="new">NEW</span></button>
-            <button onClick={() => show({ kind: "review" })} disabled={book !== "inv"}>Review <span className="new">NEW</span></button>
             <div className="dd">
               <button className="car" onClick={toggle("tools")} aria-expanded={open === "tools"}>Tools</button>
               {open === "tools" && (
@@ -416,6 +424,10 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 </div>
               </div>
             )
+          ) : topView === "advisor" ? (
+            <ReviewBody holdings={holdings} rows={rows} asOf={asOf} risk={prefs.risk} />
+          ) : topView === "ca" ? (
+            <CaView rows={rows} fnoTrades={fnoTrades} title={viewName} />
           ) : (
             <>
               <section className="summary" aria-label="Summary">
