@@ -6,10 +6,13 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createFamily, createGroup, createPortfolio, signOut } from "@/app/actions";
 import { ASSET_CLASSES, PORTFOLIO_TYPES, classInfo, typeLabel } from "@/lib/assetClasses";
 import { sumFigures } from "@/lib/calc/figures";
-import { initials, rupees, shortRupees } from "@/lib/format";
+import { amount, initials, shortRupees } from "@/lib/format";
+import { Preferences, type Prefs } from "./Preferences";
 import { buildHoldings, xirrPct, type FeedPrices, type Holding, type TxRow } from "@/lib/holdings";
 import { LinkPrice } from "./LinkPrice";
-import { AnalyticsCards, AnalyticsModal } from "./Analytics";
+import { AnalyticsModal } from "./Analytics";
+import { Hindsight } from "./Hindsight";
+import { Review } from "./Review";
 import { HoldingsTable } from "./Holdings";
 import { CorpActions } from "./CorpActions";
 import { FnoBook, type FnoTradeRow } from "./FnoBook";
@@ -19,7 +22,6 @@ import { ImportWizard, type ImportLogRow } from "./ImportWizard";
 import { Reports } from "./Reports";
 import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
-import { ThemeButton, ThemeChoice } from "./ThemeSwitch";
 import { TxDialog, type AssetOption } from "./TxDialog";
 import { TxList } from "./TxList";
 
@@ -43,6 +45,7 @@ type Props = {
   importLog: ImportLogRow[];
   assets: AssetOption[];
   asOf: string;
+  prefs: Prefs;
 };
 
 type Dialog =
@@ -57,13 +60,16 @@ type Dialog =
   | { kind: "reports" }
   | { kind: "corpActions" }
   | { kind: "analytics" }
+  | { kind: "hindsight" }
+  | { kind: "review" }
   | { kind: "addPortfolio" }
   | null;
 
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, fnoTrades, feed, indices, importLog, assets, asOf }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, fnoTrades, feed, indices, importLog, assets, asOf, prefs }: Props) {
+  const fmt = prefs.amountFmt;
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [toast, setToast] = useState("");
@@ -208,6 +214,8 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               )}
             </div>
             <button onClick={() => show({ kind: "analytics" })} disabled={book !== "inv"}>Analytics <span className="new">NEW</span></button>
+            <button onClick={() => show({ kind: "hindsight" })} disabled={book !== "inv"}>Hindsight <span className="new">NEW</span></button>
+            <button onClick={() => show({ kind: "review" })} disabled={book !== "inv"}>Review <span className="new">NEW</span></button>
             <div className="dd">
               <button className="car" onClick={toggle("tools")} aria-expanded={open === "tools"}>Tools</button>
               {open === "tools" && (
@@ -220,7 +228,6 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               )}
             </div>
             <button onClick={() => say("Help centre comes later")}>Help</button>
-            <ThemeButton />
             <div className="dd">
               <button className="car" onClick={toggle("user")} aria-expanded={open === "user"}>
                 <span className="avatar">{initials(email)}</span>
@@ -229,7 +236,6 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="panel">
                   <div className="hd mut" style={{ fontSize: 12 }}>{email}</div>
                   <Link className="it" href="/account">My Account</Link>
-                  <ThemeChoice />
                   <hr />
                   <form action={signOut}>
                     <button className="it">Sign out</button>
@@ -366,31 +372,15 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="dd">
                   <button className="mb car" onClick={toggle("prefs")}>Preferences</button>
                   {open === "prefs" && (
-                    <div className="panel">
-                      <ThemeChoice />
+                    <div className="panel" style={{ minWidth: 250 }}>
+                      <Preferences families={families} prefs={prefs} />
                       <hr />
-                      <div className="hd note">Cost method: FIFO (oldest sold first), as income tax requires. Average price is shown for reference.</div>
+                      <div className="hd note">Cost method: FIFO (oldest sold first), as income tax requires.</div>
                       <div className="hd note">Financial year: April to March.</div>
                     </div>
                   )}
                 </div>
                 <button className="mb" onClick={() => show({ kind: "reports" })}>Reports</button>
-                <div className="dd hov">
-                  <button className="anl" title="Analytics" aria-label="Open analytics" onClick={() => show({ kind: "analytics" })}>
-                    <svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true">
-                      <path d="M2 16h16" stroke="currentColor" strokeWidth="1.6" />
-                      <rect x="3" y="9" width="2.6" height="6" fill="currentColor" />
-                      <rect x="7.5" y="6" width="2.6" height="9" fill="currentColor" />
-                      <rect x="12" y="3" width="2.6" height="12" fill="currentColor" />
-                      <path d="M3 7l5-4 4 3 5-4" stroke="var(--accent)" strokeWidth="1.6" fill="none" />
-                    </svg>
-                  </button>
-                  {holdings.length > 0 && (
-                    <div className="panel anpanel hp">
-                      <AnalyticsCards holdings={holdings} xirr={xirr} onOpen={() => show({ kind: "analytics" })} />
-                    </div>
-                  )}
-                </div>
               </div>
             )}
             {book === "fno" && current && (
@@ -429,14 +419,14 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
           ) : (
             <>
               <section className="summary" aria-label="Summary">
-                <div className="stat"><span className="label">Invested</span><span className="v num">₹{rupees(total.investedPaise)}</span><span className="s mut">{holdings.length} holdings</span></div>
+                <div className="stat"><span className="label">Invested</span><span className="v num">{amount(total.investedPaise, fmt)}</span><span className="s mut">{holdings.length} holdings</span></div>
                 <div className="stat">
                   <span className="label">Current value</span>
-                  <span className="v num">{total.currentPaise == null ? "—" : `₹${rupees(total.currentPaise)}`}</span>
+                  <span className="v num">{total.currentPaise == null ? "—" : amount(total.currentPaise, fmt)}</span>
                   <span className="s mut">{unpriced > 0 ? `${unpriced} held at cost — set a price` : total.currentPaise == null ? "—" : shortRupees(total.currentPaise)}</span>
                 </div>
-                <div className="stat"><span className="label">Today&apos;s gain</span><span className={`v num ${tone(total.todayPaise)}`}>{total.todayPaise == null ? "—" : `₹${rupees(total.todayPaise)}`}</span><span className={`s num ${tone(total.todayPct)}`}>{pct(total.todayPct)}</span></div>
-                <div className="stat"><span className="label">Unrealised gain</span><span className={`v num ${tone(total.unrealisedPaise)}`}>{total.unrealisedPaise == null ? "—" : `₹${rupees(total.unrealisedPaise)}`}</span><span className={`s num ${tone(total.unrealisedPct)}`}>{pct(total.unrealisedPct)}</span></div>
+                <div className="stat"><span className="label">Today&apos;s gain</span><span className={`v num ${tone(total.todayPaise)}`}>{total.todayPaise == null ? "—" : amount(total.todayPaise, fmt)}</span><span className={`s num ${tone(total.todayPct)}`}>{pct(total.todayPct)}</span></div>
+                <div className="stat"><span className="label">Unrealised gain</span><span className={`v num ${tone(total.unrealisedPaise)}`}>{total.unrealisedPaise == null ? "—" : amount(total.unrealisedPaise, fmt)}</span><span className={`s num ${tone(total.unrealisedPct)}`}>{pct(total.unrealisedPct)}</span></div>
                 <div className="stat"><span className="label">XIRR</span><span className={`v num ${tone(xirr)}`}>{pct(xirr)}</span><span className="s mut">a year, since first buy</span></div>
               </section>
 
@@ -528,6 +518,12 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
       )}
       {dlg?.kind === "analytics" && (
         <AnalyticsModal holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
+      )}
+      {dlg?.kind === "hindsight" && (
+        <Hindsight holdings={holdings} rows={rows} xirr={xirr} asOf={asOf} title={viewName} onClose={() => setDlg(null)} />
+      )}
+      {dlg?.kind === "review" && (
+        <Review holdings={holdings} rows={rows} asOf={asOf} title={viewName} risk={prefs.risk} onClose={() => setDlg(null)} />
       )}
       {dlg?.kind === "reports" && <Reports rows={rows} title={viewName} portName={portName} onClose={() => setDlg(null)} />}
       {dlg?.kind === "corpActions" && <CorpActions onClose={() => setDlg(null)} onDone={done} />}

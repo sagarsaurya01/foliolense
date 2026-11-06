@@ -13,6 +13,11 @@ export function shortRupees(paise: number): string {
   return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(r)}`;
 }
 
+// Full (₹1,35,00,000.00) or short (₹1.35 Cr), per the user's "Display amounts" preference.
+export function amount(paise: number | bigint, mode: "full" | "short" = "full"): string {
+  return mode === "short" ? shortRupees(Number(paise)) : "₹" + rupees(paise);
+}
+
 export function quantity(q: number): string {
   const decimals = Number.isInteger(q) ? 0 : 3;
   return new Intl.NumberFormat("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(q);

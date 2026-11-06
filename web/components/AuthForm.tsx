@@ -8,11 +8,31 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 type Mode = "sign-in" | "sign-up" | "forgot" | "update";
 
 const TITLES: Record<Mode, string> = {
-  "sign-in": "Sign in",
+  "sign-in": "Welcome back",
   "sign-up": "Create your account",
   forgot: "Reset your password",
   update: "Choose a new password",
 };
+
+const SUBTITLES: Record<Mode, string> = {
+  "sign-in": "Sign in to your FolioLense account",
+  "sign-up": "Start tracking your family's portfolio",
+  forgot: "We'll email you a secure reset link",
+  update: "Pick something you'll remember",
+};
+
+const MailIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+  </svg>
+);
+const LockIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.7" />
+    <path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.7" />
+  </svg>
+);
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -23,6 +43,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [done, setDone] = useState("");
   const [needCode, setNeedCode] = useState(false);
   const [code, setCode] = useState("");
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     // arriving from a page that needs the 2-factor code (already signed in with the password)
@@ -131,37 +152,54 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <div className="auth-card">
-      <h1>{TITLES[mode]}</h1>
+      <div className="auth-head">
+        <h1>{TITLES[mode]}</h1>
+        <p>{SUBTITLES[mode]}</p>
+      </div>
       <form onSubmit={submit} noValidate>
         {mode !== "update" && (
           <label className="field">
             Email
-            <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <span className="field-in">
+              <span className="field-ic"><MailIcon /></span>
+              <input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </span>
           </label>
         )}
         {mode !== "forgot" && (
           <label className="field">
             {mode === "update" ? "New password" : "Password"}
-            <input
-              id="password"
-              type="password"
-              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <span className="field-in">
+              <span className="field-ic"><LockIcon /></span>
+              <input
+                id="password"
+                type={showPw ? "text" : "password"}
+                autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button type="button" className="field-eye" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Hide password" : "Show password"}>
+                {showPw ? "Hide" : "Show"}
+              </button>
+            </span>
           </label>
         )}
         <div className="err" role="alert">{error}</div>
         {done && <div className="ok" role="status">{done}</div>}
-        <button className="btn primary" disabled={busy} style={{ justifyContent: "center" }}>
+        <button className="btn primary auth-submit" disabled={busy}>
           {busy ? "Please wait…" : mode === "sign-in" ? "Sign in" : mode === "sign-up" ? "Create account" : mode === "forgot" ? "Send reset link" : "Save password"}
+          {!busy && <span aria-hidden="true">→</span>}
         </button>
       </form>
       <div className="auth-foot">
         {mode === "sign-in" && (
           <>
-            <Link className="link" href="/sign-up">Create an account</Link>
-            <Link className="link" href="/forgot-password">Forgot password?</Link>
+            <span className="auth-sep"><i /><span>new here?</span><i /></span>
+            <div className="auth-foot-row">
+              <Link className="link" href="/sign-up">Create an account</Link>
+              <Link className="mut-link" href="/forgot-password">Forgot password?</Link>
+            </div>
           </>
         )}
         {(mode === "sign-up" || mode === "forgot") && <Link className="link" href="/sign-in">Back to sign in</Link>}

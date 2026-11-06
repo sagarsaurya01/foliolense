@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -12,15 +11,10 @@ export const metadata: Metadata = {
   description: "Family portfolio tracker",
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  // "light" / "dark" pin the theme; no cookie (or "system") follows the computer's setting
-  const theme = (await cookies()).get("theme")?.value;
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // The app always follows the device's light/dark setting (prefers-color-scheme); no in-app toggle.
   return (
-    <html
-      lang="en-IN"
-      className={`${display.variable} ${body.variable} ${num.variable}`}
-      data-theme={theme === "light" || theme === "dark" ? theme : undefined}
-    >
+    <html lang="en-IN" className={`${display.variable} ${body.variable} ${num.variable}`}>
       <body>{children}</body>
     </html>
   );

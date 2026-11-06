@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>FolioLense — App vs Demo</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  :root{ --brand:#0b2620; --brand2:#123a31; --ink:#15231e; --mut:#5b6a64; --line:#d8e1dd;
+         --accent:#d9603a; --green:#1d9e75; --amber:#c08a1e; --grey:#8a948f; --soft:#f2f5f3; }
+  html,body{ margin:0; padding:0; font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif; color:var(--ink); font-size:11px; line-height:1.5; }
+  .wrap{ max-width:720px; margin:0 auto; }
+  header{ background:var(--brand); color:#e2efea; border-radius:12px; padding:20px 22px; margin-bottom:16px; }
+  .logo{ display:flex; align-items:center; gap:9px; font-size:19px; font-weight:700; letter-spacing:-.01em; }
+  .logo .mk{ width:26px; height:26px; border:2.4px solid #e2efea; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .logo b{ color:var(--accent); }
+  header h1{ font-size:21px; margin:12px 0 3px; font-weight:600; letter-spacing:-.01em; }
+  header p{ margin:0; color:#a7c6bc; font-size:11.5px; }
+  .legend{ display:flex; gap:16px; margin:14px 0 18px; flex-wrap:wrap; }
+  .legend span{ display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--mut); }
+  .dot{ width:10px; height:10px; border-radius:50%; flex:none; }
+  .d-green{ background:var(--green); } .d-amber{ background:var(--amber); } .d-grey{ background:var(--grey); } .d-dark{ background:#a8431f; }
+  .sec{ margin-bottom:18px; break-inside:avoid; }
+  .sec-h{ display:flex; align-items:center; gap:9px; margin-bottom:9px; }
+  .sec-h .dot{ width:13px; height:13px; }
+  .sec-h h2{ font-size:14.5px; margin:0; font-weight:600; }
+  .sec-h small{ color:var(--mut); font-size:11px; font-weight:400; }
+  .grp{ margin-bottom:11px; break-inside:avoid; }
+  .grp-t{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--brand); margin-bottom:5px; }
+  ul{ margin:0; padding:0; list-style:none; }
+  li{ display:flex; align-items:flex-start; gap:7px; padding:2.5px 0; }
+  li .b{ color:var(--green); font-weight:700; flex:none; }
+  .sec.amber li .b, .sec.grey li .b{ color:var(--grey); }
+  li .why{ color:var(--mut); font-size:10px; font-style:italic; margin-left:4px; }
+  .box{ border:1px solid var(--line); border-radius:10px; padding:13px 15px; }
+  .box.green{ background:#eef7f2; border-color:#cfe6db; }
+  .box.grey{ background:var(--soft); }
+  .note{ background:var(--brand); color:#dcebe4; border-radius:10px; padding:12px 15px; font-size:11px; margin:16px 0 4px; }
+  .note b{ color:var(--accent); }
+  .tag{ display:inline-block; font-size:9px; font-weight:700; padding:1px 6px; border-radius:4px; margin-left:4px; vertical-align:1px; }
+  .t-price{ background:#fdeee8; color:#a8431f; } .t-profile{ background:#eef2fb; color:#3a5a9a; }
+  .t-vendor{ background:#f3ecf9; color:#6a3a9a; } .t-infra{ background:#eef7f2; color:#1d7a5a; }
+  .foot{ color:var(--mut); font-size:9.5px; text-align:center; margin-top:14px; }
+  .links{ font-size:10.5px; color:var(--mut); margin-top:4px; }
+  .links b{ color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><span class="mk">◔</span>Folio<b>Lense</b></div>
+    <h1>What&rsquo;s in the App vs the Demo</h1>
+    <p>A plain map of what works on real data today, and what the showcase demo adds as the vision. As of 28 Oct 2026.</p>
+  </header>
+
+  <div class="legend">
+    <span><i class="dot d-green"></i> In the app — works on your real data</span>
+    <span><i class="dot d-grey"></i> In the demo, not the app — shown in the showcase</span>
+    <span><i class="dot d-dark"></i> Not in app or demo — further vision</span>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="sec">
+    <div class="sec-h"><span class="dot d-green"></span><h2>1 · Live in the app</h2><small>real features, working on your own portfolio</small></div>
+    <div class="box green">
+      <div class="grp">
+        <div class="grp-t">Tracking &amp; portfolio</div>
+        <ul>
+          <li><span class="b">✓</span> All holdings in one place; net worth, invested, current value, total &amp; today&rsquo;s gain</li>
+          <li><span class="b">✓</span> Realised &amp; unrealised gains; XIRR</li>
+          <li><span class="b">✓</span> Live daily prices from NSE &amp; AMFI (matched by ISIN)</li>
+          <li><span class="b">✓</span> 12 asset classes: stocks/ETFs, equity &amp; debt MF, SIF, banks, NPS/ULIP, insurance, private equity, FDs, deposits/loans, PPF/EPF, gold</li>
+          <li><span class="b">✓</span> Families; Individual / HUF / Company / Other portfolios &amp; groups</li>
+          <li><span class="b">✓</span> Imports: tradebook, CAS, e-CAS, opening balances (Excel), manual entry</li>
+          <li><span class="b">✓</span> Corporate actions; analytics (allocation, XIRR performance, equity exposure)</li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">Hindsight — &ldquo;what happened to me&rdquo; (new)</div>
+        <ul>
+          <li><span class="b">✓</span> Did I make money — gain &amp; %, booked gains this year with estimated tax (STCG 20%, LTCG 12.5% over the ₹1.25L 112A exemption, else slab)</li>
+          <li><span class="b">✓</span> 112A tax-harvest headroom</li>
+          <li><span class="b">✓</span> Top gainers &amp; draggers; income this year (dividends + interest)</li>
+          <li><span class="b">✓</span> Your XIRR vs a bank FD and vs inflation</li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">Review — &ldquo;is my money arranged well&rdquo; (new)</div>
+        <ul>
+          <li><span class="b">✓</span> Allocation overview by broad group</li>
+          <li><span class="b">✓</span> Concentration (largest holding, top 5, trim amount)</li>
+          <li><span class="b">✓</span> Liquidity (how much is reachable in ~1 week)</li>
+          <li><span class="b">✓</span> Income (dividend/interest yield)</li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">Reports / Tax pack</div>
+        <ul>
+          <li><span class="b">✓</span> Realised capital gains (FIFO, short/long term, 31-Jan-2018 grandfathering)</li>
+          <li><span class="b">✓</span> Capital gains summary across all years; Schedule 112A export (CSV)</li>
+          <li><span class="b">✓</span> Dividends &amp; interest report; holdings as on a date; transaction register</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><b>The demo shows all of the above</b> — populated with a sample &ldquo;Sharma family&rdquo; covering every asset type — <b>plus everything in section 2 below</b>, so viewers see the complete product vision. The real app contains only section 1.</div>
+
+  <!-- SECTION 2 -->
+  <div class="sec grey">
+    <div class="sec-h"><span class="dot d-grey"></span><h2>2 · In the demo, not the app</h2><small>shown in the showcase across its Owner / Advisor / CA tabs — each waits on the data or setup noted</small></div>
+    <div class="box grey">
+      <div class="grp">
+        <div class="grp-t">Hindsight extras — demo Owner tab</div>
+        <ul>
+          <li><span class="b">◦</span> &ldquo;Worth the effort&rdquo; vs Nifty 50 <span class="tag t-price">needs price history</span></li>
+          <li><span class="b">◦</span> Did my gut work — decision verdicts <span class="tag t-price">needs price history</span></li>
+          <li><span class="b">◦</span> Sold too early / held too long <span class="tag t-price">needs price history</span></li>
+          <li><span class="b">◦</span> Discipline score &amp; luck-vs-skill <span class="tag t-price">needs price history</span></li>
+          <li><span class="b">◦</span> Completeness meter &amp; data-completion prompts</li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">Advisor extras — demo Advisor tab</div>
+        <ul>
+          <li><span class="b">◦</span> Framework switcher (age-based, core-satellite, goal buckets, factor, index, all-weather)</li>
+          <li><span class="b">◦</span> Allocation personalised targets &amp; rebalance amount <span class="tag t-profile">needs risk profile</span></li>
+          <li><span class="b">◦</span> MF overlap <span class="tag t-vendor">needs fund-data vendor</span></li>
+          <li><span class="b">◦</span> Cost drag (expense ratios) <span class="tag t-vendor">needs fund-data vendor</span></li>
+          <li><span class="b">◦</span> Benchmark &amp; peer rank <span class="tag t-vendor">needs market-data vendor</span></li>
+          <li><span class="b">◦</span> Quality &amp; valuation <span class="tag t-vendor">needs fundamentals vendor</span></li>
+          <li><span class="b">◦</span> Risk (worst-fall in rupees) <span class="tag t-price">needs price history</span></li>
+          <li><span class="b">◦</span> Gap detector (term cover, health cover, emergency fund, 80C, nominees, goals)</li>
+          <li><span class="b">◦</span> Goals &amp; progress; next-best-actions <span class="tag t-profile">needs risk profile</span></li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">CA extras — demo CA tab</div>
+        <ul>
+          <li><span class="b">◦</span> Old vs new tax regime check <span class="tag t-profile">needs income profile</span></li>
+          <li><span class="b">◦</span> Tax &amp; compliance calendar (SIPs, maturities, premiums, advance tax)</li>
+          <li><span class="b">◦</span> Family net worth across members <span class="tag t-infra">needs family-wide view</span></li>
+          <li><span class="b">◦</span> Read-only CA share link <span class="tag t-infra">needs sharing setup</span></li>
+          <li><span class="b">◦</span> F&amp;O turnover summary</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="sec">
+    <div class="sec-h"><span class="dot d-dark"></span><h2>3 · Not in the app or the demo</h2><small>further vision from the PRD — not shown anywhere yet</small></div>
+    <div class="box grey" style="border-color:#e3c3b6;">
+      <div class="grp">
+        <div class="grp-t">AI layer</div>
+        <ul>
+          <li><span class="b" style="color:#a8431f">◦</span> Ask FolioLense — chat over your holdings</li>
+          <li><span class="b" style="color:#a8431f">◦</span> Explain-this-flag; one-page review note (PDF)</li>
+          <li><span class="b" style="color:#a8431f">◦</span> Missing-piece finder; CA meeting pack</li>
+        </ul>
+      </div>
+      <div class="grp">
+        <div class="grp-t">Auto-connections</div>
+        <ul>
+          <li><span class="b" style="color:#a8431f">◦</span> Broker auto-sync — Zerodha, Dhan, Upstox, Angel <span class="tag t-vendor">needs paid broker API</span></li>
+          <li><span class="b" style="color:#a8431f">◦</span> Account Aggregator — banks, FDs, EPF, NPS, insurance <span class="tag t-vendor">needs licensed partner</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="links">
+    <b>Real app:</b> web-production-9a8f4.up.railway.app &nbsp;·&nbsp; <b>Demo:</b> web-production-9a8f4.up.railway.app/demo
+  </div>
+  <div class="foot">FolioLense · one-point investment manager · internal status note</div>
+</div>
+</body>
+</html>

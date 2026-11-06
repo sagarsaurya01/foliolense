@@ -20,11 +20,9 @@ if (task === "setup") {
 } else if (task === "dev") {
   // no --reload: StatReload is unreliable on Windows (it exits the server). Restart manually after edits.
   run(venvPy, ["-m", "uvicorn", "main:app", "--port", "8000"]);
-} else if (task === "prices") {
-  run(venvPy, ["-m", "jobs.run", process.argv[3] || "all"]);
 } else if (task === "test") {
   run(venvPy, ["-m", "pytest", "-q"]);
 } else {
-  console.error("usage: node scripts/worker.mjs setup|dev|prices|test");
+  console.error("usage: node scripts/worker.mjs setup|dev|test");
   process.exit(2);
 }

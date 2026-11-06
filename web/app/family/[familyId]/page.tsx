@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { FnoTradeRow } from "@/components/FnoBook";
 import type { ImportLogRow } from "@/components/ImportWizard";
@@ -81,6 +82,14 @@ export default async function FamilyPage({ params, searchParams }: Props) {
     .order("created_at", { ascending: false })
     .limit(30);
 
+  const jar = await cookies();
+  const parse = <T,>(raw: string | undefined): T | null => { try { return raw ? (JSON.parse(raw) as T) : null; } catch { return null; } };
+  const prefs = {
+    amountFmt: (jar.get("amt_fmt")?.value === "short" ? "short" : "full") as "full" | "short",
+    risk: parse<{ age: number; level: "conservative" | "balanced" | "aggressive" }>(jar.get("risk")?.value),
+    landing: parse<{ familyId: string; book: "inv" | "fno" }>(jar.get("landing")?.value),
+  };
+
   return (
     <Shell
       email={auth.user.email ?? ""}
@@ -98,6 +107,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       importLog={(importLog ?? []) as ImportLogRow[]}
       assets={(assets ?? []) as AssetOption[]}
       asOf={todayIST()}
+      prefs={prefs}
     />
   );
 }
