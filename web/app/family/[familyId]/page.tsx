@@ -48,11 +48,16 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   let rows: TxRow[] = [];
   let fnoTrades: FnoTradeRow[] = [];
   const feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][] = [];
-  if (book === "fno" && selected !== "all") {
+  // On the F&O book: the selected portfolio's trades. On the INV book: all the family's F&O trades,
+  // so the CA view can show F&O turnover and P/L across the whole family.
+  const fnoPortIds = book === "fno"
+    ? (selected !== "all" ? [selected] : [])
+    : mine.filter((p) => p.book === "fno").map((p) => p.id);
+  if (fnoPortIds.length) {
     const { data } = await supabase
       .from("fno_trades")
       .select("underlying, instrument, expiry, strike_paise, segment, trade_date, side, quantity, price_paise")
-      .eq("portfolio_id", selected)
+      .in("portfolio_id", fnoPortIds)
       .order("trade_date")
       .limit(50000);
     fnoTrades = (data ?? []) as FnoTradeRow[];
