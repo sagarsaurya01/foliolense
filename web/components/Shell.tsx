@@ -15,6 +15,7 @@ import { Hindsight } from "./Hindsight";
 import { Review, ReviewBody } from "./Review";
 import { CaView } from "./CaView";
 import { VivekView } from "./VivekView";
+import { SwingView } from "./SwingView";
 import { HoldingsTable } from "./Holdings";
 import { CorpActions } from "./CorpActions";
 import { FnoBook, type FnoTradeRow } from "./FnoBook";
@@ -79,7 +80,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const [showType, setShowType] = useState("");
   const [assetQ, setAssetQ] = useState("");
   const [dlg, setDlg] = useState<Dialog>(null);
-  const [topView, setTopView] = useState<"owner" | "advisor" | "ca" | "vivek">("owner");
+  const [topView, setTopView] = useState<"owner" | "advisor" | "ca" | "vivek" | "swing">("owner");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const famPorts = portfolios.filter((p) => p.family_id === family.id);
@@ -197,7 +198,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
           <Logo />
           {book === "inv" && (
             <div className="vtoggle" role="tablist" aria-label="View">
-              {([["owner", "Owner"], ["advisor", "Advisor"], ["ca", "CA"], ["vivek", "Vivek Bajaj"]] as const).map(([v, label]) => (
+              {([["owner", "Owner"], ["advisor", "Advisor"], ["ca", "CA"], ["vivek", "Vivek Bajaj"], ["swing", "Swing"]] as const).map(([v, label]) => (
                 <button key={v} type="button" role="tab" aria-selected={topView === v} className={topView === v ? "on" : ""} onClick={() => setTopView(v)}>{label}</button>
               ))}
             </div>
@@ -431,6 +432,11 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
             <CaView rows={rows} fnoTrades={fnoTrades} title={viewName} />
           ) : topView === "vivek" ? (
             <VivekView
+              items={holdings.filter((h) => h.cls === "EQ" && h.isin).map((h) => ({ isin: h.isin as string, name: h.name }))}
+              title={viewName}
+            />
+          ) : topView === "swing" ? (
+            <SwingView
               items={holdings.filter((h) => h.cls === "EQ" && h.isin).map((h) => ({ isin: h.isin as string, name: h.name }))}
               title={viewName}
             />
