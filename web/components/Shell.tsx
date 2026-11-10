@@ -197,7 +197,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
           <Logo />
           {book === "inv" && (
             <div className="vtoggle" role="tablist" aria-label="View">
-              {([["owner", "Owner"], ["advisor", "Advisor"], ["ca", "CA"], ["vivek", "Vivek"]] as const).map(([v, label]) => (
+              {([["owner", "Owner"], ["advisor", "Advisor"], ["ca", "CA"], ["vivek", "Vivek Bajaj"]] as const).map(([v, label]) => (
                 <button key={v} type="button" role="tab" aria-selected={topView === v} className={topView === v ? "on" : ""} onClick={() => setTopView(v)}>{label}</button>
               ))}
             </div>

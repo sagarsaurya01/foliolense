@@ -13,6 +13,9 @@ const num = (n: number | null, suffix = "") => (n == null ? "—" : `${n.toFixed
 export function VivekView({ items, title }: { items: { isin: string; name: string }[]; title: string }) {
   const [loading, setLoading] = useState(true);
   const [verdicts, setVerdicts] = useState<VivekVerdict[]>([]);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggleOpen = (isin: string) =>
+    setOpen((s) => { const n = new Set(s); if (n.has(isin)) n.delete(isin); else n.add(isin); return n; });
   const key = items.map((i) => i.isin).join(",");
 
   useEffect(() => {
@@ -61,23 +64,38 @@ export function VivekView({ items, title }: { items: { isin: string; name: strin
             </div>
           )}
 
+          <p className="mut small" style={{ margin: "14px 0 6px" }}>Tap any stock to see why.</p>
           <div className="demo-lenses">
-            {sorted.map((v) => (
-              <div className={`demo-lens s-${TONE[v.verdict]}`} key={v.isin}>
-                <div className="demo-lens-top">
-                  <span className="demo-lens-dot" />
-                  <div>
-                    <b>{v.symbol || v.name}</b>
-                    <p className="mut small">{v.name}</p>
-                  </div>
-                  <span className={`demo-lens-tag t-${TONE[v.verdict]}`}>{v.headline}</span>
+            {sorted.map((v) => {
+              const isOpen = open.has(v.isin);
+              return (
+                <div className={`demo-lens s-${TONE[v.verdict]}`} key={v.isin}>
+                  <button
+                    type="button"
+                    className="demo-lens-top"
+                    onClick={() => toggleOpen(v.isin)}
+                    aria-expanded={isOpen}
+                    style={{ width: "100%", background: "none", border: 0, cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", padding: 0 }}
+                  >
+                    <span className="demo-lens-dot" />
+                    <div style={{ flex: 1 }}>
+                      <b>{v.symbol || v.name}</b>
+                      <p className="mut small">{v.name}</p>
+                    </div>
+                    <span className={`demo-lens-tag t-${TONE[v.verdict]}`}>{v.headline}</span>
+                    <span className="mut" style={{ marginLeft: 8, fontSize: 12 }} aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ marginTop: 10 }}>
+                      <div className="demo-lens-metric">
+                        RS {num(v.signals.rs6mPct, "%")} vs Nifty · {v.signals.close > (v.signals.dma200 ?? 0) ? "above" : "below"} 200-DMA · delivery {num(v.signals.delivAvg, "%")}
+                      </div>
+                      <p className="demo-lens-reason">{v.reason}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="demo-lens-metric">
-                  RS {num(v.signals.rs6mPct, "%")} vs Nifty · {v.signals.close > (v.signals.dma200 ?? 0) ? "above" : "below"} 200-DMA · delivery {num(v.signals.delivAvg, "%")}
-                </div>
-                <p className="demo-lens-reason">{v.reason}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <p className="demo-tone">
