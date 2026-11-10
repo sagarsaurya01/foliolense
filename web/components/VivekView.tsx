@@ -50,7 +50,7 @@ export function VivekView({ items, title }: { items: { isin: string; name: strin
 
           {toBook.length > 0 && (
             <div className="demo-card" style={{ borderColor: "var(--loss)" }}>
-              <div className="demo-card-head">The sell discipline — what he'd book or exit now</div>
+              <div className="demo-card-head">The sell discipline — what he&apos;d book or exit now</div>
               {toBook.map((v) => (
                 <div key={v.isin} className="demo-line">
                   <span>{v.symbol || v.name}<small> {v.headline}</small></span>
