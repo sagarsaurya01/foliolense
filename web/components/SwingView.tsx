@@ -1,27 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { swingSignals } from "@/app/swing-actions";
+import { swingScan } from "@/app/swing-actions";
 import type { SwingSignal, SwingStatus } from "@/lib/swing";
 
 const TONE: Record<SwingStatus, "green" | "amber" | "red" | "mut"> = {
   breakout: "green", watch: "amber", hold: "mut", avoid: "red",
 };
-const ORDER: Record<SwingStatus, number> = { breakout: 0, watch: 1, hold: 2, avoid: 3 };
 const rupee = (n: number | null) => (n == null ? "—" : `₹${n.toLocaleString("en-IN")}`);
 
-export function SwingView({ items, title }: { items: { isin: string; name: string }[]; title: string }) {
+export function SwingView({ heldIsins }: { heldIsins: string[] }) {
   const [loading, setLoading] = useState(true);
   const [signals, setSignals] = useState<SwingSignal[]>([]);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const toggleOpen = (isin: string) =>
     setOpen((s) => { const n = new Set(s); if (n.has(isin)) n.delete(isin); else n.add(isin); return n; });
-  const key = items.map((i) => i.isin).join(",");
+  const key = heldIsins.join(",");
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    swingSignals(items)
+    swingScan(heldIsins)
       .then((v) => alive && setSignals(v))
       .catch(() => alive && setSignals([]))
       .finally(() => alive && setLoading(false));
@@ -29,30 +28,29 @@ export function SwingView({ items, title }: { items: { isin: string; name: strin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  const sorted = [...signals].sort((a, b) => ORDER[a.status] - ORDER[b.status]);
-  const count = (s: SwingStatus) => signals.filter((v) => v.status === s).length;
+  const breakout = signals.filter((s) => s.status === "breakout").length;
+  const watch = signals.filter((s) => s.status === "watch").length;
 
   return (
     <div className="demo-owner" style={{ padding: "4px 2px 8px" }}>
       <div className="eyebrow" style={{ color: "var(--accent)", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase" }}>Swing trading</div>
-      <h2 style={{ fontSize: 23, fontWeight: 600, margin: "3px 0 2px" }}>Short-term trade setups</h2>
-      <p className="mut" style={{ fontSize: 13, marginBottom: 14 }}>{title} · 2–5 day swings from daily price action — breakout, trend and ATR-based stops. Signals, not advice.</p>
+      <h2 style={{ fontSize: 23, fontWeight: 600, margin: "3px 0 2px" }}>Today&apos;s swing setups</h2>
+      <p className="mut" style={{ fontSize: 13, marginBottom: 14 }}>Scanning the ~220 F&amp;O stocks for 2–5 day setups — excluding what you already hold. Breakout, trend and ATR stops. Signals, not advice.</p>
 
       {loading ? (
-        <div className="demo-card"><div className="mut" style={{ fontSize: 13 }}>Scanning the daily charts for setups…</div></div>
+        <div className="demo-card"><div className="mut" style={{ fontSize: 13 }}>Scanning the F&amp;O universe for breakouts…</div></div>
       ) : !signals.length ? (
-        <div className="demo-card"><div className="mut" style={{ fontSize: 13 }}>No price history yet for these stocks.</div></div>
+        <div className="demo-card"><div className="mut" style={{ fontSize: 13 }}>No fresh setups right now (or the F&amp;O history is still loading). Check back after market close.</div></div>
       ) : (
         <>
           <div className="demo-lens-summary">
-            <span className="ls-pill green">{count("breakout")} breakout</span>
-            <span className="ls-pill amber">{count("watch")} to watch</span>
-            <span className="ls-pill red">{count("avoid")} avoid</span>
+            <span className="ls-pill green">{breakout} breakout today</span>
+            <span className="ls-pill amber">{watch} setting up</span>
           </div>
 
           <p className="mut small" style={{ margin: "14px 0 6px" }}>Tap any stock for its entry, stop and target.</p>
           <div className="demo-lenses">
-            {sorted.map((v) => {
+            {signals.map((v) => {
               const isOpen = open.has(v.isin);
               return (
                 <div className={`demo-lens s-${TONE[v.status]}`} key={v.isin}>
@@ -65,19 +63,17 @@ export function SwingView({ items, title }: { items: { isin: string; name: strin
                   >
                     <span className="demo-lens-dot" />
                     <div style={{ flex: 1 }}>
-                      <b>{v.symbol || v.name}</b>
-                      <p className="mut small">{v.name}</p>
+                      <b>{v.symbol}</b>
+                      <p className="mut small">{rupee(v.close)}{v.target != null && <> · target {rupee(v.target)}</>}</p>
                     </div>
                     <span className={`demo-lens-tag t-${TONE[v.status]}`}>{v.headline}</span>
                     <span className="mut" style={{ marginLeft: 8, fontSize: 12 }} aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
                   </button>
                   {isOpen && (
                     <div style={{ marginTop: 10 }}>
-                      {(v.entry != null || v.stop != null || v.target != null) && (
-                        <div className="demo-lens-metric">
-                          {v.entry != null && <>Entry {rupee(v.entry)} · </>}Stop {rupee(v.stop)}{v.target != null && <> · Target {rupee(v.target)}</>}{v.rr != null && <> · {v.rr}:1</>}
-                        </div>
-                      )}
+                      <div className="demo-lens-metric">
+                        {v.entry != null && <>Entry {rupee(v.entry)} · </>}Stop {rupee(v.stop)}{v.target != null && <> · Target {rupee(v.target)}</>}{v.rr != null && <> · {v.rr}:1</>}
+                      </div>
                       <p className="demo-lens-reason">{v.reason}</p>
                     </div>
                   )}
@@ -87,7 +83,7 @@ export function SwingView({ items, title }: { items: { isin: string; name: strin
           </div>
 
           <p className="demo-tone">
-            Swing setups from daily price action (20-day breakout, 20-day trend, ATR stops). This is analysis of price data, not a recommendation to buy or sell — place and manage every trade yourself.
+            A scan of the F&amp;O universe for 20-day breakouts with ATR-based stops — these are *new* trade ideas, not your holdings. Analysis of price data, not a recommendation; place and manage every trade yourself.
           </p>
         </>
       )}
