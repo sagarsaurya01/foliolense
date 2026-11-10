@@ -27,6 +27,35 @@ Nifty Bank,26-10-2026,54250.3,54392.5,53777.5,54366.7,79.35,.15
 Nifty IT,26-10-2026,1,1,1,1,1,1
 """
 
+# full sec_bhavdata_full row: OHLC + volume + delivery columns
+BHAV_FULL = """SYMBOL, SERIES, DATE1, PREV_CLOSE, OPEN_PRICE, HIGH_PRICE, LOW_PRICE, LAST_PRICE, CLOSE_PRICE, AVG_PRICE, TTL_TRD_QNTY, TURNOVER_LACS, NO_OF_TRADES, DELIV_QTY, DELIV_PER
+HDFCBANK, EQ, 26-Oct-2026, 1600.00, 1610, 1650, 1595, 1640, 1642.30, 1630, 1250000, 20500.50, 45000, 800000, 64.00
+RELIANCE, EQ, 26-Oct-2026, 2900.00, 2910, 2950, 2890, 2945, 2948.50, 2930, 980000, 28900.00, 52000, -, -
+UNKNOWN, EQ, 26-Oct-2026, 50, 50, 50, 50, 50, 50, 50, 100, 1, 1, 50, 50
+"""
+
+
+def test_parse_nse_bhav_history_ohlc_volume_delivery():
+    master = sources.parse_equity_master(EQL)
+    bars = sources.parse_nse_bhav_history(BHAV_FULL, master, wanted={"HDFCBANK", "RELIANCE"})
+    assert len(bars) == 2
+    by = {b.nse_symbol: b for b in bars}
+    h = by["HDFCBANK"]
+    assert h.isin == "INE040A01034"
+    assert h.price_date == "2026-10-26"
+    assert (h.open_paise, h.high_paise, h.low_paise, h.close_paise) == (161000, 165000, 159500, 164230)
+    assert h.volume == 1250000
+    assert h.deliv_qty == 800000 and h.deliv_pct == 64.00
+    # RELIANCE has '-' for delivery -> None, prices still parse
+    r = by["RELIANCE"]
+    assert r.close_paise == 294850 and r.deliv_qty is None and r.deliv_pct is None
+
+
+def test_parse_nse_bhav_history_filters_to_wanted():
+    master = sources.parse_equity_master(EQL)
+    bars = sources.parse_nse_bhav_history(BHAV_FULL, master, wanted={"HDFCBANK"})
+    assert [b.nse_symbol for b in bars] == ["HDFCBANK"]
+
 
 def test_amfi_parses_isin_nav_date():
     rows = sources.parse_amfi(AMFI)

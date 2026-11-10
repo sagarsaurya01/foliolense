@@ -114,6 +114,70 @@ def parse_nse_bhav(text: str, symbol_to_isin: dict[str, tuple[str, str]]) -> lis
     return out
 
 
+# ---------- NSE equities: full daily bar (OHLC + volume + delivery) for the history table ----------
+@dataclass
+class HistoryBar:
+    isin: str
+    nse_symbol: str
+    price_date: str
+    open_paise: int
+    high_paise: int
+    low_paise: int
+    close_paise: int
+    volume: int
+    deliv_qty: int | None
+    deliv_pct: float | None
+
+
+def _num(v: str) -> float | None:
+    v = v.strip()
+    if not v or v == "-":
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None
+
+
+def parse_nse_bhav_history(
+    text: str, symbol_to_isin: dict[str, tuple[str, str]], wanted: set[str] | None = None
+) -> list[HistoryBar]:
+    """sec_bhavdata_full_<date>.csv -> one HistoryBar per EQ/BE row (optionally only `wanted` symbols).
+
+    Columns: 0 SYMBOL 1 SERIES 2 DATE 3 PREV_CLOSE 4 OPEN 5 HIGH 6 LOW 7 LAST 8 CLOSE
+             9 AVG 10 TTL_TRD_QNTY 11 TURNOVER 12 NO_OF_TRADES 13 DELIV_QTY 14 DELIV_PER
+    """
+    out: list[HistoryBar] = []
+    for row in csv.reader(io.StringIO(text)):
+        if len(row) < 11 or row[0].strip() == "SYMBOL":
+            continue
+        sym = row[0].strip()
+        if row[1].strip() not in ("EQ", "BE"):
+            continue
+        if wanted is not None and sym not in wanted:
+            continue
+        hit = symbol_to_isin.get(sym)
+        if not hit:
+            continue
+        isin = hit[0]
+        o, h, lo, c = _num(row[4]), _num(row[5]), _num(row[6]), _num(row[8])
+        if c is None:
+            continue
+        dq = _num(row[13]) if len(row) > 13 else None
+        dp = _num(row[14]) if len(row) > 14 else None
+        out.append(HistoryBar(
+            isin=isin, nse_symbol=sym, price_date=_iso(row[2]),
+            open_paise=_paise(o) if o is not None else _paise(c),
+            high_paise=_paise(h) if h is not None else _paise(c),
+            low_paise=_paise(lo) if lo is not None else _paise(c),
+            close_paise=_paise(c),
+            volume=int(_num(row[10]) or 0),
+            deliv_qty=int(dq) if dq is not None else None,
+            deliv_pct=dp,
+        ))
+    return out
+
+
 # ---------- NSE indices ----------
 @dataclass
 class IndexClose:
