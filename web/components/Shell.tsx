@@ -436,10 +436,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
               title={viewName}
             />
           ) : topView === "swing" ? (
-            <SwingView
-              items={holdings.filter((h) => h.cls === "EQ" && h.isin).map((h) => ({ isin: h.isin as string, name: h.name }))}
-              title={viewName}
-            />
+            <SwingView heldIsins={holdings.filter((h) => h.cls === "EQ" && h.isin).map((h) => h.isin as string)} />
           ) : (
             <>
               <section className="summary" aria-label="Summary">

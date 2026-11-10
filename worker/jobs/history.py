@@ -22,6 +22,21 @@ import httpx
 from . import run, sources
 
 EQUITY_L = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
+FO_MKTLOTS = "https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv"
+FO_INDEX = {"NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50", "NIFTYIT"}
+
+
+def fno_symbols() -> set[str]:
+    """The ~220 NSE stocks that have F&O (a liquid, tradeable swing universe), from the market-lots file."""
+    out: set[str] = set()
+    for ln in run._get(FO_MKTLOTS).splitlines()[1:]:
+        p = ln.split(",")
+        if len(p) < 2:
+            continue
+        sym = p[1].strip()
+        if sym and sym not in FO_INDEX and sym.replace("&", "").replace("-", "").isalnum():
+            out.add(sym)
+    return out
 
 
 def _env() -> tuple[str, dict[str, str]]:
@@ -70,16 +85,16 @@ def one_day(d: date, master: dict[str, tuple[str, str]], wanted: set[str]) -> in
     return len(bars)
 
 
-def backfill(months: int) -> None:
-    wanted = held_symbols()
+def backfill(months: int, universe: str = "held") -> None:
+    wanted = fno_symbols() if universe == "fno" else held_symbols()
     if not wanted:
-        print("no held NSE equities found; nothing to backfill")
+        print(f"no symbols for universe '{universe}'; nothing to backfill")
         return
     master = sources.parse_equity_master(run._get(EQUITY_L))
     end = date.today()
     cur = end - timedelta(days=int(months * 30.5))
     total = days = holidays = 0
-    print(f"backfilling {months} months for {len(wanted)} held symbols ({cur} .. {end})")
+    print(f"backfilling {months} months for {len(wanted)} {universe} symbols ({cur} .. {end})")
     while cur <= end:
         if cur.weekday() < 5:  # Mon-Fri
             try:
@@ -99,11 +114,13 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["backfill", "append"])
     ap.add_argument("--months", type=int, default=18)
+    ap.add_argument("--universe", choices=["held", "fno"], default="held",
+                    help="which stocks to backfill: the app's holdings, or the F&O universe")
     ap.add_argument("--date", help="YYYY-MM-DD (append only; default: last weekday)")
     a = ap.parse_args(argv)
 
     if a.cmd == "backfill":
-        backfill(a.months)
+        backfill(a.months, a.universe)
         return 0
 
     d = date.fromisoformat(a.date) if a.date else date.today()
