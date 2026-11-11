@@ -10,15 +10,64 @@ The app sends the uploaded PDF + password here; nothing is stored by the worker.
 from __future__ import annotations
 
 import io
+import logging
+import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Form, HTTPException, UploadFile
+from fastapi import FastAPI, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from jobs import statements
 
-app = FastAPI(title="FolioLense worker")
+log = logging.getLogger("foliolense.worker")
+
+# --- daily price auto-update -------------------------------------------------
+# NSE publishes the day's bhavcopy by ~18:30 IST and AMFI posts NAVs through the evening,
+# so we top up stock + MF prices, Nifty indices and price_history every weekday at 21:00 IST.
+# Runs inside this always-on service (it also serves PDF parsing); set ENABLE_PRICE_CRON=0 to disable.
+_scheduler = None
+
+
+def _run_daily_safe() -> None:
+    try:
+        from jobs import run as jrun
+        log.info("daily price refresh: %s", jrun.daily_refresh())
+    except Exception:  # noqa: BLE001 - never let a job error crash the worker
+        log.exception("daily price refresh failed")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    global _scheduler
+    if os.environ.get("SUPABASE_SERVICE_KEY") and os.environ.get("ENABLE_PRICE_CRON", "1") != "0":
+        try:
+            from apscheduler.schedulers.background import BackgroundScheduler
+            from apscheduler.triggers.cron import CronTrigger
+            _scheduler = BackgroundScheduler(timezone="Asia/Kolkata")
+            _scheduler.add_job(_run_daily_safe, CronTrigger(day_of_week="mon-fri", hour=21, minute=0),
+                               id="daily_prices", misfire_grace_time=3600, coalesce=True, max_instances=1)
+            _scheduler.start()
+            log.info("price cron scheduled: weekdays 21:00 Asia/Kolkata")
+        except Exception:  # noqa: BLE001 - scheduler is best-effort; the parse API must still start
+            log.exception("could not start price cron")
+    yield
+    if _scheduler:
+        _scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="FolioLense worker", lifespan=lifespan)
 # the app (localhost:3000 in dev) calls this directly from the browser for PDF parsing
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+@app.post("/jobs/run-daily")
+def run_daily(x_run_token: str = Header(default="")) -> dict:
+    """Manually trigger the same daily price refresh (for testing / catch-up).
+    Protected by the service key so only the operator can call it."""
+    if not x_run_token or x_run_token != os.environ.get("SUPABASE_SERVICE_KEY"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    from jobs import run as jrun
+    return jrun.daily_refresh()
 
 
 @app.get("/health")

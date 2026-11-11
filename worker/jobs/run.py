@@ -108,6 +108,42 @@ def upsert_rest(prices: list[sources.Price], indices: list[sources.IndexClose]) 
     print(f"upserted {len(prices)} prices + {len(indices)} indices")
 
 
+def daily_refresh(for_date: date | None = None) -> dict:
+    """One all-in-one daily top-up: stock + MF prices, Nifty indices, and price_history for held stocks.
+
+    Each source is fetched independently so a single failure (e.g. an NSE holiday 404) never blocks
+    the others. Returns a summary dict. Used by both the worker's scheduler and the manual endpoint.
+    """
+    from . import history  # local import to avoid a cycle at module load
+
+    d = for_date or date.today()
+    while d.weekday() >= 5:  # roll a weekend back to Friday
+        d -= timedelta(days=1)
+
+    summary: dict = {"date": d.isoformat(), "prices": 0, "indices": 0, "history_bars": 0, "errors": []}
+    prices: list[sources.Price] = []
+    indices: list[sources.IndexClose] = []
+    for label, fn in (("amfi", fetch_amfi), ("nse", lambda: fetch_nse(d))):
+        try:
+            prices += fn()
+        except Exception as e:  # noqa: BLE001 - keep going; report per-source
+            summary["errors"].append(f"{label}: {e}")
+    try:
+        indices += fetch_indices(d)
+    except Exception as e:  # noqa: BLE001
+        summary["errors"].append(f"indices: {e}")
+    if prices or indices:
+        upsert_rest(prices, indices)
+    summary["prices"], summary["indices"] = len(prices), len(indices)
+
+    try:  # price_history (what the Vivek / Swing engines read) for the held stocks
+        master = sources.parse_equity_master(_get(history.EQUITY_L))
+        summary["history_bars"] = history.one_day(d, master, history.held_symbols())
+    except Exception as e:  # noqa: BLE001
+        summary["errors"].append(f"history: {e}")
+    return summary
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("job", choices=["amfi", "nse", "indices", "all"])
