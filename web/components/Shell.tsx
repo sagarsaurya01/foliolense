@@ -89,7 +89,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const current = bookPorts.find((p) => p.id === selected);
   const currentGroup = groups.find((g) => g.id === selected);
   const combined = selected === "all" || !!currentGroup;
-  const viewName = current?.name ?? currentGroup?.name ?? (book === "inv" ? "Family Group" : "—");
+  const viewName = current?.name ?? currentGroup?.name ?? (book === "inv" ? "My Clients" : "—");
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
   const feedMap = useMemo<FeedPrices>(() => new Map(feed), [feed]);
@@ -171,7 +171,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const railList = [
     ...(book === "inv"
       ? [
-          { id: "all", name: "Family Group", type: "All members", group: true },
+          { id: "all", name: "My Clients", type: "All members", group: true },
           ...groups.map((g) => ({ id: g.id, name: g.name, type: `Group · ${g.members.length} portfolios`, group: true })),
         ]
       : []),
@@ -593,7 +593,7 @@ function FamilyPanel({
   const [pending, start] = useTransition();
   const rows = families
     .flatMap((f) => [{ f, p: null as Portfolio | null }, ...portfolios.filter((p) => p.family_id === f.id).map((p) => ({ f, p }))])
-    .filter((r) => !q || `${r.f.name} ${r.p ? r.p.name : "Family Group"}`.toLowerCase().includes(q.toLowerCase()));
+    .filter((r) => !q || `${r.f.name} ${r.p ? r.p.name : "My Clients"}`.toLowerCase().includes(q.toLowerCase()));
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
@@ -633,7 +633,7 @@ function FamilyPanel({
             href={r.p ? href({ fam: r.f.id, p: r.p.id, book: r.p.book }) : `/family/${r.f.id}`}
           >
             <span>{r.f.name}</span>
-            <span className="mut">{r.p ? r.p.name : "Family Group"}</span>
+            <span className="mut">{r.p ? r.p.name : "My Clients"}</span>
           </Link>
         ))}
         {!rows.length && <div className="it mut">No match</div>}
