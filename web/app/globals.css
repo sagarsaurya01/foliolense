@@ -37,7 +37,7 @@ button{cursor:pointer}
 .pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
-.who .brk{display:block;font-size:10.5px;color:var(--accent);opacity:.9;margin-top:1px;letter-spacing:.01em}
+.who .brk{display:block;font-size:10.5px;color:var(--accent);opacity:.9;margin-top:1px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip.brk{color:var(--accent);background:var(--accent-soft)}
 .btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{border-color:var(--brand-muted)}
@@ -85,7 +85,7 @@ button{cursor:pointer}
 .gsearch input,.asearch input{border:0;background:transparent;outline:none;min-width:0;width:100%}
 
 /* shell */
-.shell{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:calc(100vh - 110px)}
+.shell{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:calc(100vh - 110px)}
 .rail{background:var(--surface);border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:14px}
 .seg{display:flex;background:var(--surface-2);border-radius:8px;padding:3px}
 .seg a{flex:1;text-align:center;text-decoration:none;padding:6px 0;border-radius:6px;font-weight:600;font-size:13px;color:var(--muted)}
@@ -96,6 +96,7 @@ button{cursor:pointer}
 .plist{display:flex;flex-direction:column;gap:6px}
 .pbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--surface);padding:9px 11px;border-radius:8px;font-size:13px;text-decoration:none;color:inherit}
 .pbtn small{color:var(--muted);font-size:11px}
+.pbtn>.num{white-space:nowrap;flex:0 0 auto}
 .pbtn:hover{border-color:var(--brand-muted)}
 .pbtn[aria-current="true"]{background:var(--sel);border-color:var(--sel-line);font-weight:600}
 .pbtn .who{display:flex;flex-direction:column;gap:1px;min-width:0}
