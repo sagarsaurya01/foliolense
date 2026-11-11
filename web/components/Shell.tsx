@@ -49,6 +49,7 @@ type Props = {
   assets: AssetOption[];
   asOf: string;
   prefs: Prefs;
+  brokers?: Record<string, { name: string; client_id: string | null }>;
 };
 
 type Dialog =
@@ -71,7 +72,7 @@ type Dialog =
 const pct = (n: number | null) => (n == null || !isFinite(n) ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`);
 const tone = (n: number | null) => (n == null ? "mut" : n >= 0 ? "gain" : "loss");
 
-export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, fnoTrades, feed, indices, importLog, assets, asOf, prefs }: Props) {
+export function Shell({ email, families, family, portfolios, groups, book, selected, tab, rows, fnoTrades, feed, indices, importLog, assets, asOf, prefs, brokers = {} }: Props) {
   const fmt = prefs.amountFmt;
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
@@ -89,6 +90,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
   const current = bookPorts.find((p) => p.id === selected);
   const currentGroup = groups.find((g) => g.id === selected);
   const combined = selected === "all" || !!currentGroup;
+  const curBrk = current ? brokers[current.id] : undefined;
   const viewName = current?.name ?? currentGroup?.name ?? (book === "inv" ? "My Clients" : "—");
   const portName = (id: string) => portfolios.find((p) => p.id === id)?.name ?? "";
 
@@ -316,15 +318,19 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
             </label>
           )}
           <div className="plist">
-            {railList.map((p) => (
-              <Link key={p.id} className="pbtn" href={href({ p: p.id })} aria-current={p.id === selected}>
-                <span className="who">
-                  <span>{p.name}</span>
-                  <small>{p.type}</small>
-                </span>
-                {book === "inv" && showValue(p.id) ? <small className="num">{shortRupees(valueOf(p.id))}</small> : p.group && <GroupIcon />}
-              </Link>
-            ))}
+            {railList.map((p) => {
+              const brk = !p.group ? brokers[p.id] : undefined;
+              return (
+                <Link key={p.id} className="pbtn" href={href({ p: p.id })} aria-current={p.id === selected}>
+                  <span className="who">
+                    <span>{p.name}</span>
+                    <small>{p.type}</small>
+                    {brk && <small className="brk">{brk.name}{brk.client_id ? ` · ${brk.client_id}` : ""}</small>}
+                  </span>
+                  {book === "inv" && showValue(p.id) ? <small className="num">{shortRupees(valueOf(p.id))}</small> : p.group && <GroupIcon />}
+                </Link>
+              );
+            })}
             {!railList.length && <span className="mut" style={{ fontSize: 13 }}>{bookPorts.length ? "No match" : "No portfolios yet."}</span>}
           </div>
           <button className="addp" onClick={() => show({ kind: "addPortfolio" })}><span className="plus">+</span>Add Portfolio</button>
@@ -342,6 +348,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   ? currentGroup.members.map((m) => portName(m)).join(" + ")
                   : `${bookPorts.length} portfolios combined`}
             </span>
+            {curBrk && <span className="chip brk">{curBrk.name}{curBrk.client_id ? ` · ${curBrk.client_id}` : ""}</span>}
             {book === "inv" && (
               <div className="actions">
                 <button className="addc" title="Add a transaction" onClick={() => show({ kind: "tx" })} disabled={!invPorts.length}>+</button>

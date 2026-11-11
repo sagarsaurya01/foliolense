@@ -45,6 +45,20 @@ export default async function FamilyPage({ params, searchParams }: Props) {
   const selected = group ? group.id : sp.p && inBook.some((p) => p.id === sp.p) ? sp.p : book === "inv" ? "all" : inBook[0]?.id ?? "all";
   const scope = group ? group.members : selected === "all" ? inBook.map((p) => p.id) : [selected];
 
+  // Broker attribution per client: which broker account holds each portfolio (shown in the rail + header).
+  const invPortIds = mine.filter((p) => p.book === "inv").map((p) => p.id);
+  const brokers: Record<string, { name: string; client_id: string | null }> = {};
+  if (invPortIds.length) {
+    const [{ data: txb }, { data: brk }] = await Promise.all([
+      supabase.from("transactions").select("portfolio_id, broker_id").in("portfolio_id", invPortIds).not("broker_id", "is", null).limit(50000),
+      supabase.from("brokers").select("id, name, client_id"),
+    ]);
+    const byId = new Map((brk ?? []).map((b) => [b.id as string, { name: b.name as string, client_id: (b.client_id as string | null) ?? null }]));
+    for (const t of (txb ?? []) as { portfolio_id: string; broker_id: string | null }[]) {
+      if (t.broker_id && !brokers[t.portfolio_id] && byId.has(t.broker_id)) brokers[t.portfolio_id] = byId.get(t.broker_id)!;
+    }
+  }
+
   let rows: TxRow[] = [];
   let fnoTrades: FnoTradeRow[] = [];
   const feed: [string, { close_paise: number; prev_close_paise: number | null; price_date: string }][] = [];
@@ -113,6 +127,7 @@ export default async function FamilyPage({ params, searchParams }: Props) {
       assets={(assets ?? []) as AssetOption[]}
       asOf={todayIST()}
       prefs={prefs}
+      brokers={brokers}
     />
   );
 }
