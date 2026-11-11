@@ -37,6 +37,8 @@ button{cursor:pointer}
 .pad{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .chip{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.who .brk{display:block;font-size:10.5px;color:var(--accent);opacity:.9;margin-top:1px;letter-spacing:.01em}
+.chip.brk{color:var(--accent);background:var(--accent-soft)}
 .btn{border:1px solid var(--line);background:var(--surface);padding:7px 12px;border-radius:8px;font-size:13px;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{border-color:var(--brand-muted)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
