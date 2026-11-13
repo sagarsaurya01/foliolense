@@ -25,6 +25,7 @@ import { ImportWizard, type ImportLogRow } from "./ImportWizard";
 import { Reports } from "./Reports";
 import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
+import { StockReport } from "./StockReport";
 import { TxDialog, type AssetOption } from "./TxDialog";
 import { TxList } from "./TxList";
 
@@ -66,6 +67,7 @@ type Dialog =
   | { kind: "analytics" }
   | { kind: "hindsight" }
   | { kind: "review" }
+  | { kind: "stockReport"; assetId?: string }
   | { kind: "addPortfolio" }
   | null;
 
@@ -234,6 +236,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                 <div className="panel">
                   <button className="it" onClick={soon("Global Reports", 4)}>Global Reports</button>
                   <button className="it" onClick={() => show({ kind: "corpActions" })}>Corporate Actions</button>
+                  <button className="it" onClick={() => show({ kind: "stockReport" })} disabled={book !== "inv"}>Stock Report</button>
                   <button className="it" onClick={soon("Global Asset Search", 2)}>Global Asset Search</button>
                   <button className="it" onClick={soon("Reconcile Holdings", 3)}>Reconcile Holdings</button>
                 </div>
@@ -487,6 +490,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
                   asOf={asOf}
                   onSetPrice={(h) => show({ kind: "price", h })}
                   onLink={(h) => show({ kind: "link", h })}
+                  onReport={(h) => show({ kind: "stockReport", assetId: h.assetId })}
                   onAdd={() => (invPorts.length ? show({ kind: "tx" }) : show({ kind: "addPortfolio" }))}
                   emptyText={
                     assetQ ? "No assets match that search."
@@ -554,6 +558,14 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
         <Review holdings={holdings} rows={rows} asOf={asOf} title={viewName} risk={prefs.risk} onClose={() => setDlg(null)} />
       )}
       {dlg?.kind === "reports" && <Reports rows={rows} title={viewName} portName={portName} onClose={() => setDlg(null)} />}
+      {dlg?.kind === "stockReport" && (
+        <StockReport
+          familyId={family.id}
+          assetList={holdings.map((h) => ({ id: h.assetId, name: h.name, cls: h.cls }))}
+          initialAssetId={dlg.assetId}
+          onClose={() => setDlg(null)}
+        />
+      )}
       {dlg?.kind === "corpActions" && <CorpActions onClose={() => setDlg(null)} onDone={done} />}
       {dlg?.kind === "importFno" && current && book === "fno" && (
         <FnoImport portfolioId={current.id} portfolioName={current.name} onClose={() => setDlg(null)} onDone={done} />

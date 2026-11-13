@@ -32,6 +32,7 @@ export function HoldingsTable({
   asOf,
   onSetPrice,
   onLink,
+  onReport,
   onAdd,
   emptyText,
 }: {
@@ -41,6 +42,7 @@ export function HoldingsTable({
   asOf: string;
   onSetPrice: (h: Holding) => void;
   onLink: (h: Holding) => void;
+  onReport?: (h: Holding) => void;
   onAdd: () => void;
   emptyText: string;
 }) {
@@ -138,6 +140,17 @@ export function HoldingsTable({
                       {h.warnings.length > 0 && <span className="loss" title={h.warnings.join("\n")}> ⚠</span>}
                     </span>
                   </button>
+                  {onReport && (
+                    <button
+                      type="button"
+                      title="Stock report — every buy/sell and today's value"
+                      aria-label={`Stock report for ${h.name}`}
+                      onClick={() => onReport(h)}
+                      style={{ marginLeft: 8, border: 0, background: "none", color: "var(--muted)", cursor: "pointer", padding: 2, verticalAlign: "middle", lineHeight: 0 }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="6" y1="20" x2="6" y2="13" /><line x1="12" y1="20" x2="12" y2="5" /><line x1="18" y1="20" x2="18" y2="10" /></svg>
+                    </button>
+                  )}
                 </td>
                 <td>
                   {bal ? <span className="mut">—</span> : (
