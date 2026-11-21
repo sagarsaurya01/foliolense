@@ -141,6 +141,12 @@ def daily_refresh(for_date: date | None = None) -> dict:
         summary["history_bars"] = history.one_day(d, master, history.held_symbols())
     except Exception as e:  # noqa: BLE001
         summary["errors"].append(f"history: {e}")
+
+    try:  # evaluate watchlist price alerts against the fresh close
+        from . import alerts
+        summary["alerts"] = alerts.run_alerts()
+    except Exception as e:  # noqa: BLE001
+        summary["errors"].append(f"alerts: {e}")
     return summary
 
 

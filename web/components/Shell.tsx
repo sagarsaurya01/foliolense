@@ -27,6 +27,7 @@ import { Logo } from "./Logo";
 import { DeleteDialog, PriceDialog, RenameDialog } from "./SmallDialogs";
 import { StockReport } from "./StockReport";
 import { TxDialog, type AssetOption } from "./TxDialog";
+import { WatchlistDialog } from "./WatchlistDialog";
 import { TxList } from "./TxList";
 
 export type ShellGroup = { id: string; name: string; members: string[] }; // id is "g:<uuid>"
@@ -68,6 +69,7 @@ type Dialog =
   | { kind: "hindsight" }
   | { kind: "review" }
   | { kind: "stockReport"; assetId?: string }
+  | { kind: "watchlist" }
   | { kind: "addPortfolio" }
   | null;
 
@@ -230,6 +232,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
             </div>
             <button onClick={() => show({ kind: "analytics" })} disabled={book !== "inv"}>Analytics <span className="new">NEW</span></button>
             <button onClick={() => show({ kind: "hindsight" })} disabled={book !== "inv"}>Hindsight <span className="new">NEW</span></button>
+            <button onClick={() => show({ kind: "watchlist" })} disabled={book !== "inv"}>Watchlist <span className="new">NEW</span></button>
             <div className="dd">
               <button className="car" onClick={toggle("tools")} aria-expanded={open === "tools"}>Tools</button>
               {open === "tools" && (
@@ -566,6 +569,7 @@ export function Shell({ email, families, family, portfolios, groups, book, selec
           onClose={() => setDlg(null)}
         />
       )}
+      {dlg?.kind === "watchlist" && <WatchlistDialog onClose={() => setDlg(null)} />}
       {dlg?.kind === "corpActions" && <CorpActions onClose={() => setDlg(null)} onDone={done} />}
       {dlg?.kind === "importFno" && current && book === "fno" && (
         <FnoImport portfolioId={current.id} portfolioName={current.name} onClose={() => setDlg(null)} onDone={done} />
